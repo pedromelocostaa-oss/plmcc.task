@@ -14,7 +14,186 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bookmarks: {
+        Row: {
+          created_at: string
+          id: string
+          tag: string
+          title: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tag?: string
+          title?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tag?: string
+          title?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      project_links: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          title: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          title?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          title?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_links_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_notes: {
+        Row: {
+          content: string
+          id: string
+          project_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          id?: string
+          project_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          id?: string
+          project_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_notes_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          archived: boolean
+          color: string
+          created_at: string
+          id: string
+          name: string
+          position: number
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          comments: Json
+          completed_at: string | null
+          created_at: string
+          description: string
+          due_date: string | null
+          id: string
+          priority: number
+          project_id: string
+          status: string
+          subtasks: Json
+          tags: string[]
+          title: string
+          user_id: string
+        }
+        Insert: {
+          comments?: Json
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          priority?: number
+          project_id: string
+          status?: string
+          subtasks?: Json
+          tags?: string[]
+          title: string
+          user_id: string
+        }
+        Update: {
+          comments?: Json
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          priority?: number
+          project_id?: string
+          status?: string
+          subtasks?: Json
+          tags?: string[]
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
