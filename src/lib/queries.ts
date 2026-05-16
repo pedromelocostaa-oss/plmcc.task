@@ -17,6 +17,12 @@ function todayBrasilia(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 }
 
+async function uid(): Promise<string> {
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) throw new Error("Not authenticated");
+  return data.user.id;
+}
+
 // ─── query keys ──────────────────────────────────────────────────────────────
 
 export const QK = {
