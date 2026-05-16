@@ -6,8 +6,39 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
-import { AuthProvider } from "@/lib/auth";
 import { Toaster } from "sonner";
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { Sidebar } from "@/components/layout/Sidebar";
+
+// ─── Search context ───────────────────────────────────────────────────────────
+
+type SearchCtx = { open: boolean; openSearch: () => void; closeSearch: () => void };
+const SearchContext = createContext<SearchCtx>({ open: false, openSearch: () => {}, closeSearch: () => {} });
+export const useSearch = () => useContext(SearchContext);
+
+function SearchProvider({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const editable = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
+      if (e.key === "/" && !editable) { e.preventDefault(); setOpen(true); }
+      else if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setOpen(true); }
+      else if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  return (
+    <SearchContext.Provider value={{ open, openSearch: () => setOpen(true), closeSearch: () => setOpen(false) }}>
+      {children}
+    </SearchContext.Provider>
+  );
+}
+
+// ─── Route ───────────────────────────────────────────────────────────────────
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -15,9 +46,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Pedro's HQ" },
-      { name: "description", content: "Personal workspace for projects, tasks, links and notes." },
+      { name: "description", content: "Command Center pessoal — projetos, tarefas, links e notas." },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
+      },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -28,7 +67,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   ),
   errorComponent: ({ error }) => (
     <div style={{ padding: 40, color: "#e6edf3", background: "#0d1117", height: "100vh" }}>
-      <pre>{error.message}</pre>
+      <pre style={{ color: "#ef4444" }}>{error.message}</pre>
     </div>
   ),
 });
@@ -46,10 +85,15 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
+      <SearchProvider>
+        <div style={{ display: "flex", height: "100vh", background: "#0d1117", color: "#e6edf3", overflow: "hidden" }}>
+          <Sidebar />
+          <main style={{ flex: 1, height: "100vh", overflowY: "auto", position: "relative" }}>
+            <Outlet />
+          </main>
+        </div>
         <Toaster theme="dark" position="bottom-right" />
-      </AuthProvider>
+      </SearchProvider>
     </QueryClientProvider>
   );
 }
