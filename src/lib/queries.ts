@@ -90,7 +90,7 @@ export function useCreateProject() {
     mutationFn: async (data: { name: string; color: string; description?: string | null; position?: number }): Promise<Project> => {
       const { data: result, error } = await supabase
         .from("projects")
-        .insert({ name: data.name, color: data.color, description: data.description ?? null, position: data.position ?? 0 })
+        .insert({ name: data.name, color: data.color, position: data.position ?? 0 })
         .select()
         .single();
       if (error) throw error;
@@ -107,9 +107,10 @@ export function useUpdateProject() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Omit<Project, 'id' | 'created_at'>> }): Promise<Project> => {
+      const { description: _d, updated_at: _u, ...patch } = data;
       const { data: result, error } = await supabase
         .from("projects")
-        .update(data)
+        .update(patch)
         .eq("id", id)
         .select()
         .single();
@@ -274,11 +275,10 @@ export function useCreateTask() {
         .insert({
           project_id: data.project_id,
           title: data.title,
-          description: data.description ?? null,
+          description: data.description ?? "",
           status: data.status ?? 'todo',
           priority: data.priority ?? 2,
           due_date: data.due_date ?? null,
-          position: data.position ?? 0,
         })
         .select()
         .single();
@@ -299,9 +299,10 @@ export function useUpdateTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks' | 'task_tags' | 'task_comments' | 'project'>> }): Promise<Task> => {
+      const { position: _p, updated_at: _u, ...patch } = data;
       const { data: result, error } = await supabase
         .from("tasks")
-        .update(data)
+        .update(patch)
         .eq("id", id)
         .select()
         .single();
