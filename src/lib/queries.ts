@@ -54,7 +54,7 @@ export function useProjects() {
         .order("position")
         .order("created_at");
       if (error) throw error;
-      return (data ?? []) as Project[];
+      return (data ?? []) as unknown as Project[];
     },
   });
 }
@@ -69,7 +69,7 @@ export function useArchivedProjects() {
         .eq("archived", true)
         .order("name");
       if (error) throw error;
-      return (data ?? []) as Project[];
+      return (data ?? []) as unknown as Project[];
     },
   });
 }
@@ -84,7 +84,7 @@ export function useProject(id: string) {
         .eq("id", id)
         .single();
       if (error) throw error;
-      return data as Project;
+      return data as unknown as Project;
     },
     enabled: !!id,
   });
@@ -94,13 +94,14 @@ export function useCreateProject() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { name: string; color: string; description?: string | null; position?: number }): Promise<Project> => {
+      const user_id = await uid();
       const { data: result, error } = await supabase
         .from("projects")
-        .insert({ name: data.name, color: data.color, position: data.position ?? 0 })
+        .insert({ name: data.name, color: data.color, position: data.position ?? 0, user_id })
         .select()
         .single();
       if (error) throw error;
-      return result as Project;
+      return result as unknown as Project;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: QK.projects });
@@ -121,7 +122,7 @@ export function useUpdateProject() {
         .select()
         .single();
       if (error) throw error;
-      return result as Project;
+      return result as unknown as Project;
     },
     onSuccess: (_result, vars) => {
       qc.invalidateQueries({ queryKey: QK.projects });
@@ -188,7 +189,7 @@ export function useTasksByProject(projectId: string) {
         .order("priority")
         .order("position");
       if (error) throw error;
-      return (data ?? []) as Task[];
+      return (data ?? []) as unknown as Task[];
     },
     enabled: !!projectId,
   });
@@ -206,7 +207,7 @@ export function useTasksForToday() {
         .order("priority")
         .order("position");
       if (error) throw error;
-      return (data ?? []) as Task[];
+      return (data ?? []) as unknown as Task[];
     },
   });
 }
@@ -224,7 +225,7 @@ export function useOverdueTasks() {
         .order("due_date")
         .order("priority");
       if (error) throw error;
-      return (data ?? []) as Task[];
+      return (data ?? []) as unknown as Task[];
     },
   });
 }
@@ -255,7 +256,7 @@ export function useAllTasks(filters?: TaskFilters) {
       const { data, error } = await q.order("priority").order("due_date", { nullsFirst: false }).order("position");
       if (error) throw error;
 
-      let tasks = (data ?? []) as Task[];
+      let tasks = (data ?? []) as unknown as Task[];
       if (filters?.tag) {
         tasks = tasks.filter((t) => t.task_tags?.some((tt) => tt.tag === filters.tag));
       }
@@ -276,20 +277,19 @@ export function useCreateTask() {
       due_date?: string | null;
       position?: number;
     }): Promise<Task> => {
+      const user_id = await uid();
       const { data: result, error } = await supabase
         .from("tasks")
-        .insert({
-          project_id: data.project_id,
+        .insert({ project_id: data.project_id,
           title: data.title,
           description: data.description ?? "",
           status: data.status ?? 'todo',
           priority: data.priority ?? 2,
-          due_date: data.due_date ?? null,
-        })
+          due_date: data.due_date ?? null, user_id })
         .select()
         .single();
       if (error) throw error;
-      return result as Task;
+      return result as unknown as Task;
     },
     onSuccess: (_result, vars) => {
       qc.invalidateQueries({ queryKey: QK.tasksByProject(vars.project_id) });
@@ -313,7 +313,7 @@ export function useUpdateTask() {
         .select()
         .single();
       if (error) throw error;
-      return result as Task;
+      return result as unknown as Task;
     },
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: QK.tasksByProject(result.project_id) });
@@ -329,6 +329,7 @@ export function useCycleTaskStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, currentStatus, projectId }: { id: string; currentStatus: Task['status']; projectId: string }): Promise<Task> => {
+      const user_id = await uid();
       const next: Task['status'] = currentStatus === 'todo' ? 'doing' : currentStatus === 'doing' ? 'done' : 'todo';
       const completed_at = next === 'done' ? new Date().toISOString() : null;
       const { data: result, error } = await supabase
@@ -338,7 +339,7 @@ export function useCycleTaskStatus() {
         .select()
         .single();
       if (error) throw error;
-      return result as Task;
+      return result as unknown as Task;
     },
     onMutate: async ({ id, currentStatus, projectId }) => {
       const next: Task['status'] = currentStatus === 'todo' ? 'doing' : currentStatus === 'doing' ? 'done' : 'todo';
@@ -369,6 +370,7 @@ export function useDeleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, projectId }: { id: string; projectId: string }) => {
+      const user_id = await uid();
       const { error } = await supabase.from("tasks").delete().eq("id", id);
       if (error) throw error;
       return { projectId };
@@ -389,13 +391,14 @@ export function useCreateSubtask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ taskId, title, projectId, position }: { taskId: string; title: string; projectId: string; position?: number }): Promise<Subtask> => {
+      const user_id = await uid();
       const { data, error } = await supabase
         .from("subtasks")
-        .insert({ task_id: taskId, title, done: false, position: position ?? 0 })
+        .insert({ task_id: taskId, title, done: false, position: position ?? 0, user_id })
         .select()
         .single();
       if (error) throw error;
-      return data as Subtask;
+      return data as unknown as Subtask;
     },
     onSuccess: (_result, vars) => {
       qc.invalidateQueries({ queryKey: QK.tasksByProject(vars.projectId) });
@@ -409,6 +412,7 @@ export function useToggleSubtask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, currentDone, projectId }: { id: string; currentDone: boolean; projectId: string }): Promise<Subtask> => {
+      const user_id = await uid();
       const { data, error } = await supabase
         .from("subtasks")
         .update({ done: !currentDone })
@@ -416,7 +420,7 @@ export function useToggleSubtask() {
         .select()
         .single();
       if (error) throw error;
-      return data as Subtask;
+      return data as unknown as Subtask;
     },
     onMutate: async ({ id, currentDone, projectId }) => {
       const qk = QK.tasksByProject(projectId);
@@ -445,6 +449,7 @@ export function useDeleteSubtask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, projectId }: { id: string; projectId: string }) => {
+      const user_id = await uid();
       const { error } = await supabase.from("subtasks").delete().eq("id", id);
       if (error) throw error;
       return { projectId };
@@ -463,13 +468,14 @@ export function useAddTag() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ taskId, tag, projectId }: { taskId: string; tag: string; projectId: string }): Promise<TaskTag> => {
+      const user_id = await uid();
       const { data, error } = await supabase
         .from("task_tags")
-        .insert({ task_id: taskId, tag })
+        .insert({ task_id: taskId, tag, user_id })
         .select()
         .single();
       if (error) throw error;
-      return data as TaskTag;
+      return data as unknown as TaskTag;
     },
     onSuccess: (_result, vars) => {
       qc.invalidateQueries({ queryKey: QK.tasksByProject(vars.projectId) });
@@ -482,6 +488,7 @@ export function useRemoveTag() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ taskId, tag, projectId }: { taskId: string; tag: string; projectId: string }) => {
+      const user_id = await uid();
       const { error } = await supabase
         .from("task_tags")
         .delete()
@@ -508,7 +515,7 @@ export function useTaskComments(taskId: string) {
         .eq("task_id", taskId)
         .order("created_at");
       if (error) throw error;
-      return (data ?? []) as TaskComment[];
+      return (data ?? []) as unknown as TaskComment[];
     },
     enabled: !!taskId,
   });
@@ -518,13 +525,14 @@ export function useAddComment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ taskId, content }: { taskId: string; content: string }): Promise<TaskComment> => {
+      const user_id = await uid();
       const { data, error } = await supabase
         .from("task_comments")
-        .insert({ task_id: taskId, content })
+        .insert({ task_id: taskId, content, user_id })
         .select()
         .single();
       if (error) throw error;
-      return data as TaskComment;
+      return data as unknown as TaskComment;
     },
     onSuccess: (_result, vars) => {
       qc.invalidateQueries({ queryKey: QK.comments(vars.taskId) });
@@ -544,7 +552,7 @@ export function useLinksByProject(projectId: string) {
         .eq("project_id", projectId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as ProjectLink[];
+      return (data ?? []) as unknown as ProjectLink[];
     },
     enabled: !!projectId,
   });
@@ -554,13 +562,14 @@ export function useCreateLink() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ projectId, title, url }: { projectId: string; title: string; url: string }): Promise<ProjectLink> => {
+      const user_id = await uid();
       const { data, error } = await supabase
         .from("project_links")
-        .insert({ project_id: projectId, title, url })
+        .insert({ project_id: projectId, title, url, user_id })
         .select()
         .single();
       if (error) throw error;
-      return data as ProjectLink;
+      return data as unknown as ProjectLink;
     },
     onSuccess: (_result, vars) => {
       qc.invalidateQueries({ queryKey: QK.links(vars.projectId) });
@@ -572,6 +581,7 @@ export function useDeleteLink() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, projectId }: { id: string; projectId: string }) => {
+      const user_id = await uid();
       const { error } = await supabase.from("project_links").delete().eq("id", id);
       if (error) throw error;
     },
@@ -593,7 +603,7 @@ export function useNote(projectId: string) {
         .eq("project_id", projectId)
         .maybeSingle();
       if (error) throw error;
-      return data as ProjectNote | null;
+      return data as unknown as ProjectNote | null;
     },
     enabled: !!projectId,
   });
@@ -603,13 +613,14 @@ export function useSaveNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ projectId, content }: { projectId: string; content: string }): Promise<ProjectNote> => {
+      const user_id = await uid();
       const { data, error } = await supabase
         .from("project_notes")
-        .upsert({ project_id: projectId, content, updated_at: new Date().toISOString() }, { onConflict: "project_id" })
+        .upsert({ project_id: projectId, content, updated_at: new Date().toISOString(), user_id }, { onConflict: "project_id" })
         .select()
         .single();
       if (error) throw error;
-      return data as ProjectNote;
+      return data as unknown as ProjectNote;
     },
     onSuccess: (_result, vars) => {
       qc.invalidateQueries({ queryKey: QK.note(vars.projectId) });
@@ -629,7 +640,7 @@ export function useBookmarks(search?: string) {
         .order("tag")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      const all = (data ?? []) as Bookmark[];
+      const all = (data ?? []) as unknown as Bookmark[];
       if (!search || search.trim().length < 2) return all;
       const q = search.toLowerCase();
       return all.filter(
@@ -646,13 +657,14 @@ export function useCreateBookmark() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ title, url, tag }: { title: string; url: string; tag: string }): Promise<Bookmark> => {
+      const user_id = await uid();
       const { data, error } = await supabase
         .from("bookmarks")
-        .insert({ title, url, tag })
+        .insert({ title, url, tag, user_id })
         .select()
         .single();
       if (error) throw error;
-      return data as Bookmark;
+      return data as unknown as Bookmark;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["bookmarks"] });
