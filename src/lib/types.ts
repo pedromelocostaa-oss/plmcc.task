@@ -2,11 +2,11 @@ export type Project = {
   id: string;
   name: string;
   color: string;
-  description: string | null;
+  description?: string | null;
   archived: boolean;
   position: number;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 };
 
 export type Subtask = {
@@ -40,10 +40,10 @@ export type Task = {
   status: 'todo' | 'doing' | 'done';
   priority: 1 | 2 | 3;
   due_date: string | null;
-  position: number;
+  position?: number;
   completed_at: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   // optional joins
   subtasks?: Subtask[];
   task_tags?: TaskTag[];

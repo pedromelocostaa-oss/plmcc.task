@@ -7,208 +7,67 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
-      projects: {
+      bookmarks: {
         Row: {
-          id: string
-          name: string
-          color: string
-          description: string | null
-          archived: boolean
-          position: number
           created_at: string
-          updated_at: string
+          id: string
+          project_id: string | null
+          tag: string
+          title: string
+          url: string
+          user_id: string
         }
         Insert: {
-          id?: string
-          name: string
-          color?: string
-          description?: string | null
-          archived?: boolean
-          position?: number
           created_at?: string
-          updated_at?: string
+          id?: string
+          project_id?: string | null
+          tag?: string
+          title?: string
+          url: string
+          user_id: string
         }
         Update: {
-          id?: string
-          name?: string
-          color?: string
-          description?: string | null
-          archived?: boolean
-          position?: number
           created_at?: string
-          updated_at?: string
+          id?: string
+          project_id?: string | null
+          tag?: string
+          title?: string
+          url?: string
+          user_id?: string
         }
         Relationships: []
       }
-      tasks: {
-        Row: {
-          id: string
-          project_id: string
-          title: string
-          description: string | null
-          status: string
-          priority: number
-          due_date: string | null
-          position: number
-          completed_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          project_id: string
-          title: string
-          description?: string | null
-          status?: string
-          priority?: number
-          due_date?: string | null
-          position?: number
-          completed_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          project_id?: string
-          title?: string
-          description?: string | null
-          status?: string
-          priority?: number
-          due_date?: string | null
-          position?: number
-          completed_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tasks_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      subtasks: {
-        Row: {
-          id: string
-          task_id: string
-          title: string
-          done: boolean
-          position: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          task_id: string
-          title: string
-          done?: boolean
-          position?: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          task_id?: string
-          title?: string
-          done?: boolean
-          position?: number
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "subtasks_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      task_tags: {
-        Row: {
-          id: string
-          task_id: string
-          tag: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          task_id: string
-          tag: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          task_id?: string
-          tag?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_tags_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      task_comments: {
-        Row: {
-          id: string
-          task_id: string
-          content: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          task_id: string
-          content: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          task_id?: string
-          content?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_comments_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       project_links: {
         Row: {
+          created_at: string
           id: string
           project_id: string
           title: string
           url: string
-          created_at: string
+          user_id: string
         }
         Insert: {
+          created_at?: string
           id?: string
           project_id: string
-          title: string
+          title?: string
           url: string
-          created_at?: string
+          user_id: string
         }
         Update: {
+          created_at?: string
           id?: string
           project_id?: string
           title?: string
           url?: string
-          created_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -217,27 +76,30 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       project_notes: {
         Row: {
+          content: string
           id: string
           project_id: string
-          content: string
           updated_at: string
+          user_id: string
         }
         Insert: {
+          content?: string
           id?: string
           project_id: string
-          content?: string
           updated_at?: string
+          user_id: string
         }
         Update: {
+          content?: string
           id?: string
           project_id?: string
-          content?: string
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -246,32 +108,94 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "projects"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
-      bookmarks: {
+      projects: {
         Row: {
-          id: string
-          title: string
-          url: string
-          tag: string
+          archived: boolean
+          color: string
           created_at: string
+          id: string
+          name: string
+          position: number
+          user_id: string
         }
         Insert: {
-          id?: string
-          title: string
-          url: string
-          tag?: string
+          archived?: boolean
+          color?: string
           created_at?: string
+          id?: string
+          name: string
+          position?: number
+          user_id: string
         }
         Update: {
-          id?: string
-          title?: string
-          url?: string
-          tag?: string
+          archived?: boolean
+          color?: string
           created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          user_id?: string
         }
         Relationships: []
+      }
+      tasks: {
+        Row: {
+          comments: Json
+          completed_at: string | null
+          created_at: string
+          description: string
+          due_date: string | null
+          id: string
+          priority: number
+          project_id: string
+          status: string
+          subtasks: Json
+          tags: string[]
+          title: string
+          user_id: string
+        }
+        Insert: {
+          comments?: Json
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          priority?: number
+          project_id: string
+          status?: string
+          subtasks?: Json
+          tags?: string[]
+          title: string
+          user_id: string
+        }
+        Update: {
+          comments?: Json
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          priority?: number
+          project_id?: string
+          status?: string
+          subtasks?: Json
+          tags?: string[]
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -290,6 +214,7 @@ export type Database = {
 }
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
@@ -369,6 +294,40 @@ export type TablesUpdate<
       }
       ? U
       : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {
