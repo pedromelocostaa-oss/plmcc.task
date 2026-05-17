@@ -17,12 +17,6 @@ function todayBrasilia(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 }
 
-async function uid(): Promise<string> {
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) throw new Error("Not authenticated");
-  return data.user.id;
-}
-
 // ─── query keys ──────────────────────────────────────────────────────────────
 
 export const QK = {
@@ -94,10 +88,9 @@ export function useCreateProject() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { name: string; color: string; description?: string | null; position?: number }): Promise<Project> => {
-      const user_id = await uid();
       const { data: result, error } = await supabase
         .from("projects")
-        .insert({ name: data.name, color: data.color, position: data.position ?? 0, user_id })
+        .insert({ name: data.name, color: data.color, description: data.description ?? null, position: data.position ?? 0 })
         .select()
         .single();
       if (error) throw error;
@@ -113,11 +106,10 @@ export function useCreateProject() {
 export function useUpdateProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<Omit<Project, 'id' | 'created_at'>> }): Promise<Project> => {
-      const { description: _d, updated_at: _u, ...patch } = data;
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Omit<Project, 'id' | 'created_at' | 'updated_at'>> }): Promise<Project> => {
       const { data: result, error } = await supabase
         .from("projects")
-        .update(patch)
+        .update(data)
         .eq("id", id)
         .select()
         .single();
@@ -277,15 +269,17 @@ export function useCreateTask() {
       due_date?: string | null;
       position?: number;
     }): Promise<Task> => {
-      const user_id = await uid();
       const { data: result, error } = await supabase
         .from("tasks")
-        .insert({ project_id: data.project_id,
+        .insert({
+          project_id: data.project_id,
           title: data.title,
-          description: data.description ?? "",
+          description: data.description ?? null,
           status: data.status ?? 'todo',
           priority: data.priority ?? 2,
-          due_date: data.due_date ?? null, user_id })
+          due_date: data.due_date ?? null,
+          position: data.position ?? 0,
+        })
         .select()
         .single();
       if (error) throw error;
@@ -304,11 +298,10 @@ export function useCreateTask() {
 export function useUpdateTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<Omit<Task, 'id' | 'created_at' | 'subtasks' | 'task_tags' | 'task_comments' | 'project'>> }): Promise<Task> => {
-      const { position: _p, updated_at: _u, ...patch } = data;
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Omit<Task, 'id' | 'created_at' | 'updated_at' | 'subtasks' | 'task_tags' | 'task_comments' | 'project'>> }): Promise<Task> => {
       const { data: result, error } = await supabase
         .from("tasks")
-        .update(patch)
+        .update(data)
         .eq("id", id)
         .select()
         .single();
@@ -329,7 +322,6 @@ export function useCycleTaskStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, currentStatus, projectId }: { id: string; currentStatus: Task['status']; projectId: string }): Promise<Task> => {
-      const user_id = await uid();
       const next: Task['status'] = currentStatus === 'todo' ? 'doing' : currentStatus === 'doing' ? 'done' : 'todo';
       const completed_at = next === 'done' ? new Date().toISOString() : null;
       const { data: result, error } = await supabase
@@ -370,7 +362,6 @@ export function useDeleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, projectId }: { id: string; projectId: string }) => {
-      const user_id = await uid();
       const { error } = await supabase.from("tasks").delete().eq("id", id);
       if (error) throw error;
       return { projectId };
@@ -391,10 +382,9 @@ export function useCreateSubtask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ taskId, title, projectId, position }: { taskId: string; title: string; projectId: string; position?: number }): Promise<Subtask> => {
-      const user_id = await uid();
       const { data, error } = await supabase
         .from("subtasks")
-        .insert({ task_id: taskId, title, done: false, position: position ?? 0, user_id })
+        .insert({ task_id: taskId, title, done: false, position: position ?? 0 })
         .select()
         .single();
       if (error) throw error;
@@ -412,7 +402,6 @@ export function useToggleSubtask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, currentDone, projectId }: { id: string; currentDone: boolean; projectId: string }): Promise<Subtask> => {
-      const user_id = await uid();
       const { data, error } = await supabase
         .from("subtasks")
         .update({ done: !currentDone })
@@ -449,7 +438,6 @@ export function useDeleteSubtask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, projectId }: { id: string; projectId: string }) => {
-      const user_id = await uid();
       const { error } = await supabase.from("subtasks").delete().eq("id", id);
       if (error) throw error;
       return { projectId };
@@ -468,10 +456,9 @@ export function useAddTag() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ taskId, tag, projectId }: { taskId: string; tag: string; projectId: string }): Promise<TaskTag> => {
-      const user_id = await uid();
       const { data, error } = await supabase
         .from("task_tags")
-        .insert({ task_id: taskId, tag, user_id })
+        .insert({ task_id: taskId, tag })
         .select()
         .single();
       if (error) throw error;
@@ -488,7 +475,6 @@ export function useRemoveTag() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ taskId, tag, projectId }: { taskId: string; tag: string; projectId: string }) => {
-      const user_id = await uid();
       const { error } = await supabase
         .from("task_tags")
         .delete()
@@ -525,10 +511,9 @@ export function useAddComment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ taskId, content }: { taskId: string; content: string }): Promise<TaskComment> => {
-      const user_id = await uid();
       const { data, error } = await supabase
         .from("task_comments")
-        .insert({ task_id: taskId, content, user_id })
+        .insert({ task_id: taskId, content })
         .select()
         .single();
       if (error) throw error;
@@ -562,10 +547,9 @@ export function useCreateLink() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ projectId, title, url }: { projectId: string; title: string; url: string }): Promise<ProjectLink> => {
-      const user_id = await uid();
       const { data, error } = await supabase
         .from("project_links")
-        .insert({ project_id: projectId, title, url, user_id })
+        .insert({ project_id: projectId, title, url })
         .select()
         .single();
       if (error) throw error;
@@ -581,7 +565,6 @@ export function useDeleteLink() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, projectId }: { id: string; projectId: string }) => {
-      const user_id = await uid();
       const { error } = await supabase.from("project_links").delete().eq("id", id);
       if (error) throw error;
     },
@@ -613,10 +596,9 @@ export function useSaveNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ projectId, content }: { projectId: string; content: string }): Promise<ProjectNote> => {
-      const user_id = await uid();
       const { data, error } = await supabase
         .from("project_notes")
-        .upsert({ project_id: projectId, content, updated_at: new Date().toISOString(), user_id }, { onConflict: "project_id" })
+        .upsert({ project_id: projectId, content, updated_at: new Date().toISOString() }, { onConflict: "project_id" })
         .select()
         .single();
       if (error) throw error;
@@ -657,10 +639,9 @@ export function useCreateBookmark() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ title, url, tag }: { title: string; url: string; tag: string }): Promise<Bookmark> => {
-      const user_id = await uid();
       const { data, error } = await supabase
         .from("bookmarks")
-        .insert({ title, url, tag, user_id })
+        .insert({ title, url, tag })
         .select()
         .single();
       if (error) throw error;
