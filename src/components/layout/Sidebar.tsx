@@ -174,9 +174,13 @@ export function Sidebar() {
         </div>
 
         {/* Footer */}
-        <div style={{ borderTop: `1px solid ${colors.borderLight}`, padding: 8 }}>
+        <div style={{ borderTop: `1px solid ${colors.borderLight}`, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
           <button onClick={handleExport} style={{ ...navBtnStyle(false), color: colors.textSecondary, fontSize: 12 }}>
             <Download size={13} /><span>Exportar JSON</span>
+          </button>
+          <button onClick={toggle} style={{ ...navBtnStyle(false), color: colors.textSecondary, fontSize: 12 }}>
+            {theme === "light" ? <Moon size={13} /> : <Sun size={13} />}
+            <span>{theme === "light" ? "Modo escuro" : "Modo claro"}</span>
           </button>
         </div>
       </aside>
