@@ -28,11 +28,36 @@
   --font-mono: "DM Mono", ui-monospace, monospace;
 }
 
+:root {
+  --hq-bg: #0d1117;
+  --hq-surface: #161b22;
+  --hq-surface-hover: #1c2128;
+  --hq-surface-alt: #0d1117;
+  --hq-border: #30363d;
+  --hq-border-light: #21262d;
+  --hq-accent: #f97316;
+  --hq-accent-bg: rgba(249,115,22,0.10);
+  --hq-accent-border: rgba(249,115,22,0.25);
+  --hq-text: #e6edf3;
+  --hq-text-secondary: #8b949e;
+  --hq-text-muted: #6e7681;
+  --hq-success: #3fb950;
+  --hq-warning: #d29922;
+  --hq-danger: #ef4444;
+  --hq-info: #58a6ff;
+  --hq-p1: #ef4444;
+  --hq-p1-bg: rgba(239,68,68,0.12);
+  --hq-p2: #f97316;
+  --hq-p2-bg: rgba(249,115,22,0.12);
+  --hq-p3: #3b82f6;
+  --hq-p3-bg: rgba(59,130,246,0.12);
+}
+
 * { border-color: var(--color-border); }
 
 html, body, #root {
-  background: #0d1117;
-  color: #e6edf3;
+  background: var(--hq-bg);
+  color: var(--hq-text);
   font-family: "Outfit", system-ui, sans-serif;
   font-weight: 400;
   height: 100%;
@@ -45,8 +70,8 @@ html, body, #root {
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: #484f58; }
+::-webkit-scrollbar-thumb { background: var(--hq-border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--hq-border-light); }
 
 button { font-family: inherit; }
 input, textarea, select { font-family: inherit; color: inherit; }
@@ -56,15 +81,24 @@ input:focus, textarea:focus { outline: none; }
   font-family: "DM Mono", monospace;
   font-size: 10px;
   padding: 1px 6px;
-  background: #21262d;
-  border: 1px solid #30363d;
+  background: var(--hq-border-light);
+  border: 1px solid var(--hq-border);
   border-radius: 4px;
-  color: #8b949e;
+  color: var(--hq-text-secondary);
 }
 
 /* ─── Light theme overrides ─────────────────────────────────────────────── */
 
 html[data-theme="light"] {
+  --hq-bg: #f6f8fa;
+  --hq-surface: #ffffff;
+  --hq-surface-hover: #f3f4f6;
+  --hq-surface-alt: #f6f8fa;
+  --hq-border: #d1d5db;
+  --hq-border-light: #e5e7eb;
+  --hq-text: #111827;
+  --hq-text-secondary: #6b7280;
+  --hq-text-muted: #9ca3af;
   --color-bg: #f6f8fa;
   --color-sidebar: #ffffff;
   --color-card: #ffffff;
@@ -91,10 +125,4 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb {
 
 html[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
-}
-
-html[data-theme="light"] .kbd {
-  background: #e5e7eb;
-  border-color: #d1d5db;
-  color: #6b7280;
 }
