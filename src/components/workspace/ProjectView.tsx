@@ -497,7 +497,7 @@ function InlineTaskForm({
     if (!title.trim()) return;
     await onSave({
       title: title.trim(),
-      description: description.trim() || null,
+      description: description.trim() || undefined,
       priority,
       due_date: dueDate || null,
     });
