@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TasksRouteImport } from './routes/tasks'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BookmarksRouteImport } from './routes/bookmarks'
 import { Route as IndexRouteImport } from './routes/index'
@@ -19,11 +18,6 @@ import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -51,7 +45,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/dashboard': typeof DashboardRoute
-  '/login': typeof LoginRoute
   '/tasks': typeof TasksRoute
   '/projects/$id': typeof ProjectsIdRoute
 }
@@ -59,7 +52,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/dashboard': typeof DashboardRoute
-  '/login': typeof LoginRoute
   '/tasks': typeof TasksRoute
   '/projects/$id': typeof ProjectsIdRoute
 }
@@ -68,27 +60,19 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/dashboard': typeof DashboardRoute
-  '/login': typeof LoginRoute
   '/tasks': typeof TasksRoute
   '/projects/$id': typeof ProjectsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/bookmarks'
-    | '/dashboard'
-    | '/login'
-    | '/tasks'
-    | '/projects/$id'
+  fullPaths: '/' | '/bookmarks' | '/dashboard' | '/tasks' | '/projects/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/bookmarks' | '/dashboard' | '/login' | '/tasks' | '/projects/$id'
+  to: '/' | '/bookmarks' | '/dashboard' | '/tasks' | '/projects/$id'
   id:
     | '__root__'
     | '/'
     | '/bookmarks'
     | '/dashboard'
-    | '/login'
     | '/tasks'
     | '/projects/$id'
   fileRoutesById: FileRoutesById
@@ -97,7 +81,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BookmarksRoute: typeof BookmarksRoute
   DashboardRoute: typeof DashboardRoute
-  LoginRoute: typeof LoginRoute
   TasksRoute: typeof TasksRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
 }
@@ -109,13 +92,6 @@ declare module '@tanstack/react-router' {
       path: '/tasks'
       fullPath: '/tasks'
       preLoaderRoute: typeof TasksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -153,7 +129,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BookmarksRoute: BookmarksRoute,
   DashboardRoute: DashboardRoute,
-  LoginRoute: LoginRoute,
   TasksRoute: TasksRoute,
   ProjectsIdRoute: ProjectsIdRoute,
 }
