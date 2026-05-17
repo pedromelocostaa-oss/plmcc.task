@@ -62,13 +62,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: () => (
-    <div style={{ padding: 40, color: "#e6edf3", background: "#0d1117", height: "100vh" }}>
-      404 — <a href="/" style={{ color: "#f97316" }}>voltar</a>
+    <div style={{ padding: 40, color: "var(--hq-text)", background: "var(--hq-bg)", height: "100vh" }}>
+      404 — <a href="/" style={{ color: "var(--hq-accent)" }}>voltar</a>
     </div>
   ),
   errorComponent: ({ error }) => (
-    <div style={{ padding: 40, color: "#e6edf3", background: "#0d1117", height: "100vh" }}>
-      <pre style={{ color: "#ef4444" }}>{error.message}</pre>
+    <div style={{ padding: 40, color: "var(--hq-text)", background: "var(--hq-bg)", height: "100vh" }}>
+      <pre style={{ color: "var(--hq-danger)" }}>{error.message}</pre>
     </div>
   ),
 });
