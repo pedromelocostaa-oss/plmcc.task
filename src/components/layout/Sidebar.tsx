@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  Home, LayoutGrid, Search, Bookmark, Plus, Download,
-  Archive, ChevronDown, ChevronRight, RotateCcw, Sun, Moon,
+  Home, ListChecks, Search, Bookmark, Plus, Download,
+  Archive, ChevronDown, ChevronRight, RotateCcw, Sun, Moon, BarChart2,
 } from "lucide-react";
 import { useProjects, useArchivedProjects, useBookmarks, useCreateProject, useArchiveProject, useUnarchiveProject, useTasksByProject } from "@/lib/queries";
 import { PROJECT_COLORS } from "@/lib/types";
 import { useSearch } from "@/routes/__root";
 import { SearchModal } from "@/components/workspace/SearchModal";
-import { colors } from "@/lib/tokens";
+import { colors, spring, radius } from "@/lib/tokens";
 import { useTheme } from "@/hooks/use-theme";
 
 export function Sidebar() {
@@ -53,48 +53,79 @@ export function Sidebar() {
   return (
     <>
       <aside style={{
-        width: 240, flexShrink: 0, height: "100vh", background: "#010409",
-        borderRight: `1px solid ${colors.borderLight}`, display: "flex", flexDirection: "column",
-        color: colors.text, overflow: "hidden",
+        width: 240,
+        flexShrink: 0,
+        height: "100vh",
+        background: "rgba(0,0,0,0.85)",
+        backdropFilter: "blur(40px) saturate(1.6)",
+        WebkitBackdropFilter: "blur(40px) saturate(1.6)",
+        borderRight: `1px solid ${colors.separator}`,
+        display: "flex",
+        flexDirection: "column",
+        color: colors.text,
+        overflow: "hidden",
       }}>
         {/* Header */}
-        <div style={{ padding: "16px 16px 14px", borderBottom: `1px solid ${colors.borderLight}` }}>
-          <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: colors.textMuted, letterSpacing: 1 }}>
-            COMMAND CENTER
+        <div style={{ padding: "20px 16px 16px", borderBottom: `1px solid ${colors.separator}` }}>
+          <div style={{
+            fontSize: 10,
+            color: colors.textMuted,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            fontWeight: 500,
+            marginBottom: 4,
+          }}>
+            Command Center
           </div>
-          <div style={{ fontSize: 17, fontWeight: 700 }}>Pedro's HQ</div>
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.02em" }}>Pedro's HQ</div>
         </div>
 
         {/* Nav */}
-        <div style={{ padding: "8px 8px", borderBottom: `1px solid ${colors.borderLight}`, display: "flex", flexDirection: "column", gap: 2 }}>
-          <NavLink to="/" label="Meu dia" icon={<Home size={14} />} active={currentPath === "/"} />
-          <NavLink to="/tasks" label="Tarefas" icon={<LayoutGrid size={14} />} active={currentPath === "/tasks"} />
-          <NavLink to="/dashboard" label="Dashboard" icon={<LayoutGrid size={14} />} active={currentPath === "/dashboard"} />
+        <div style={{ padding: "8px 8px", borderBottom: `1px solid ${colors.separator}`, display: "flex", flexDirection: "column", gap: 1 }}>
+          <NavLink to="/" label="Meu dia" icon={<Home size={15} />} active={currentPath === "/"} />
+          <NavLink to="/tasks" label="Tarefas" icon={<ListChecks size={15} />} active={currentPath === "/tasks"} />
+          <NavLink to="/dashboard" label="Dashboard" icon={<BarChart2 size={15} />} active={currentPath === "/dashboard"} />
           <button onClick={openSearch} style={navBtnStyle(false)}>
-            <Search size={14} />
+            <Search size={15} />
             <span style={{ flex: 1, textAlign: "left" }}>Buscar</span>
             <span className="kbd">/</span>
           </button>
           <NavLink
             to="/bookmarks"
             label="Links Salvos"
-            icon={<Bookmark size={14} />}
+            icon={<Bookmark size={15} />}
             active={currentPath === "/bookmarks"}
             badge={bookmarks.length > 0 ? bookmarks.length : undefined}
           />
         </div>
 
         {/* Projects header */}
-        <div style={{ padding: "10px 8px 4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 10, color: colors.textMuted, letterSpacing: 1, paddingLeft: 8 }}>
-            PROJETOS
+        <div style={{ padding: "12px 8px 4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{
+            fontSize: 10,
+            color: colors.textMuted,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            fontWeight: 500,
+            paddingLeft: 8,
+          }}>
+            Projetos
           </div>
-          <button onClick={() => setCreating(true)} style={iconBtnStyle}><Plus size={14} /></button>
+          <button onClick={() => setCreating(true)} style={iconBtnStyle} title="Novo projeto"><Plus size={14} /></button>
         </div>
 
         {/* New project form */}
         {creating && (
-          <div style={{ padding: "6px 8px", display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{
+            margin: "0 8px 8px",
+            padding: "10px",
+            background: colors.surface,
+            borderRadius: radius.md,
+            border: `1px solid ${colors.separator}`,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}>
             <input
               autoFocus
               value={newName}
@@ -106,19 +137,28 @@ export function Sidebar() {
               placeholder="Nome do projeto"
               style={inputSmStyle}
             />
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "2px 4px" }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {PROJECT_COLORS.map((c) => (
                 <button key={c} onClick={() => setNewColor(c)} style={{
-                  width: 16, height: 16, borderRadius: 8, background: c,
-                  border: newColor === c ? "2px solid #e6edf3" : "1px solid #30363d", cursor: "pointer",
+                  width: 18, height: 18, borderRadius: 9, background: c, cursor: "pointer",
+                  border: newColor === c ? `2px solid ${colors.text}` : "2px solid transparent",
+                  transition: `border-color 0.15s ${spring.snappy}`,
                 }} />
               ))}
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={handleCreateProject} style={{ ...smBtnStyle, background: colors.accent, color: "#0d1117", flex: 1 }}>
+              <button onClick={handleCreateProject} style={{
+                flex: 1, background: colors.accent, color: "#000",
+                border: "none", padding: "6px 10px", borderRadius: radius.sm,
+                cursor: "pointer", fontSize: 12, fontWeight: 600,
+              }}>
                 Criar
               </button>
-              <button onClick={() => setCreating(false)} style={smBtnStyle}>✕</button>
+              <button onClick={() => setCreating(false)} style={{
+                background: colors.surfaceRaised, color: colors.textSecondary,
+                border: `1px solid ${colors.separator}`, padding: "6px 10px",
+                borderRadius: radius.sm, cursor: "pointer", fontSize: 12,
+              }}>✕</button>
             </div>
           </div>
         )}
@@ -145,16 +185,18 @@ export function Sidebar() {
               <button onClick={() => setShowArchived(!showArchived)} style={{
                 ...iconBtnStyle, width: "100%", padding: "6px 10px", display: "flex",
                 alignItems: "center", gap: 6, fontSize: 11,
-                fontFamily: "JetBrains Mono, monospace", color: colors.textMuted,
+                color: colors.textMuted,
               }}>
                 {showArchived ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                ARQUIVADOS ({archivedProjects.length})
+                <span style={{ textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 10 }}>
+                  Arquivados ({archivedProjects.length})
+                </span>
               </button>
               {showArchived && archivedProjects.map((p) => (
-                <div key={p.id} style={{ opacity: hoveredId === p.id ? 1 : 0.6 }}
+                <div key={p.id} style={{ opacity: hoveredId === p.id ? 1 : 0.55, transition: `opacity 0.2s ${spring.gentle}` }}
                   onMouseEnter={() => setHoveredId(p.id)} onMouseLeave={() => setHoveredId(null)}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px" }}>
-                    <span style={{ width: 7, height: 7, borderRadius: 4, background: p.color, flexShrink: 0 }} />
+                    <span style={{ width: 8, height: 8, borderRadius: 4, background: p.color, flexShrink: 0 }} />
                     <Link to="/projects/$id" params={{ id: p.id }} style={{
                       flex: 1, fontSize: 13, color: colors.text, textDecoration: "none",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -174,7 +216,13 @@ export function Sidebar() {
         </div>
 
         {/* Footer */}
-        <div style={{ borderTop: `1px solid ${colors.borderLight}`, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{
+          borderTop: `1px solid ${colors.separator}`,
+          padding: "8px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+        }}>
           <button onClick={handleExport} style={{ ...navBtnStyle(false), color: colors.textSecondary, fontSize: 12 }}>
             <Download size={13} /><span>Exportar JSON</span>
           </button>
@@ -224,12 +272,20 @@ function ProjectRow({
     <div onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ position: "relative" }}>
       <Link to="/projects/$id" params={{ id }} style={{ textDecoration: "none" }}>
         <div style={{
-          display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
-          background: active ? colors.accentBg : "transparent",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "6px 10px",
+          background: active ? colors.accentBg : hovered ? "rgba(255,255,255,0.05)" : "transparent",
           color: active ? colors.accent : colors.text,
-          borderRadius: 6, fontSize: 13,
+          borderRadius: "8px",
+          fontSize: 13,
+          transition: `background 0.18s ${spring.gentle}`,
         }}>
-          <span style={{ width: 7, height: 7, borderRadius: 4, background: color, flexShrink: 0 }} />
+          <span style={{
+            width: 8, height: 8, borderRadius: 4, background: color, flexShrink: 0,
+            boxShadow: `0 0 6px ${color}66`,
+          }} />
           <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
           {hovered ? (
             <button onClick={(e) => { e.preventDefault(); onArchive(); }} style={{ ...iconBtnStyle, padding: 2 }}>
@@ -242,9 +298,14 @@ function ProjectRow({
           ) : null}
         </div>
       </Link>
-      <div style={{ height: 2, background: colors.borderLight, margin: "0 10px 2px", borderRadius: 1, overflow: "hidden" }}>
-        <div style={{ height: "100%", background: barColor, width: `${pct}%`, transition: "width 0.4s" }} />
-      </div>
+      {total > 0 && (
+        <div style={{ height: 2, background: colors.borderLight, margin: "0 10px 2px", borderRadius: 1, overflow: "hidden" }}>
+          <div style={{
+            height: "100%", background: barColor, width: `${pct}%`,
+            transition: `width 0.5s ${spring.default}`,
+          }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -252,32 +313,53 @@ function ProjectRow({
 function SidebarBadge({ children }: { children: React.ReactNode }) {
   return (
     <span style={{
-      fontFamily: "JetBrains Mono, monospace", fontSize: 10, padding: "1px 6px",
-      background: colors.borderLight, color: colors.textSecondary,
-      borderRadius: 4, minWidth: 18, textAlign: "center",
+      fontSize: 10,
+      padding: "1px 6px",
+      background: colors.surfaceRaised,
+      color: colors.textSecondary,
+      borderRadius: "99px",
+      minWidth: 18,
+      textAlign: "center",
+      fontVariantNumeric: "tabular-nums",
     }}>{children}</span>
   );
 }
 
 const navBtnStyle = (active: boolean): React.CSSProperties => ({
-  display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "7px 10px",
   background: active ? colors.accentBg : "transparent",
   color: active ? colors.accent : colors.text,
-  border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, width: "100%",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontSize: 13,
+  width: "100%",
   textDecoration: "none",
+  fontWeight: active ? 600 : 400,
+  transition: `background 0.18s cubic-bezier(0.4,0,0.2,1)`,
 });
 
 const iconBtnStyle: React.CSSProperties = {
-  background: "transparent", border: "none", color: colors.textSecondary,
-  cursor: "pointer", padding: 4, borderRadius: 4, display: "flex", alignItems: "center",
+  background: "transparent",
+  border: "none",
+  color: colors.textSecondary,
+  cursor: "pointer",
+  padding: 4,
+  borderRadius: 6,
+  display: "flex",
+  alignItems: "center",
 };
 
 const inputSmStyle: React.CSSProperties = {
-  background: "#0d1117", border: `1px solid ${colors.border}`, color: colors.text,
-  padding: "6px 8px", borderRadius: 6, fontSize: 12,
-};
-
-const smBtnStyle: React.CSSProperties = {
-  background: colors.borderLight, color: colors.text, border: `1px solid ${colors.border}`,
-  padding: "5px 10px", borderRadius: 6, cursor: "pointer", fontSize: 12,
+  background: colors.surfaceRaised,
+  border: `1px solid ${colors.separator}`,
+  color: colors.text,
+  padding: "7px 9px",
+  borderRadius: "8px",
+  fontSize: 13,
+  width: "100%",
+  boxSizing: "border-box",
 };

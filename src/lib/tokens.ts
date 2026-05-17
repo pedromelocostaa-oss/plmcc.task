@@ -1,36 +1,69 @@
 export const colors = {
-  bg: 'var(--hq-bg, #0d1117)',
-  surface: 'var(--hq-surface, #161b22)',
-  surfaceHover: 'var(--hq-surface-hover, #1c2128)',
-  surfaceAlt: 'var(--hq-surface-alt, #0d1117)',
-  border: 'var(--hq-border, #30363d)',
-  borderLight: 'var(--hq-border-light, #21262d)',
-  accent: 'var(--hq-accent, #f97316)',
-  accentBg: 'var(--hq-accent-bg, rgba(249,115,22,0.10))',
-  accentBorder: 'var(--hq-accent-border, rgba(249,115,22,0.25))',
-  text: 'var(--hq-text, #e6edf3)',
-  textSecondary: 'var(--hq-text-secondary, #8b949e)',
-  textMuted: 'var(--hq-text-muted, #6e7681)',
-  success: 'var(--hq-success, #3fb950)',
-  warning: 'var(--hq-warning, #d29922)',
-  danger: 'var(--hq-danger, #ef4444)',
-  info: 'var(--hq-info, #58a6ff)',
-  p1: 'var(--hq-p1, #ef4444)',
-  p1Bg: 'var(--hq-p1-bg, rgba(239,68,68,0.12))',
-  p2: 'var(--hq-p2, #f97316)',
-  p2Bg: 'var(--hq-p2-bg, rgba(249,115,22,0.12))',
-  p3: 'var(--hq-p3, #3b82f6)',
-  p3Bg: 'var(--hq-p3-bg, rgba(59,130,246,0.12))',
+  // OLED backgrounds
+  bg: '#000000',
+  surface: '#1C1C1E',
+  surfaceRaised: '#2C2C2E',
+  surfaceGlass: 'rgba(28,28,30,0.72)',
+  separator: 'rgba(84,84,88,0.65)',
+  separatorOpaque: '#38383A',
+
+  // Labels (iOS system)
+  text: '#FFFFFF',
+  textSecondary: 'rgba(235,235,245,0.6)',
+  textMuted: 'rgba(235,235,245,0.3)',
+  textQuaternary: 'rgba(235,235,245,0.18)',
+
+  // Accent — orange (iOS 17 system orange)
+  accent: '#FF6B00',
+  accentBg: 'rgba(255,107,0,0.14)',
+  accentBorder: 'rgba(255,107,0,0.30)',
+
+  // System colors
+  success: '#30D158',
+  danger: '#FF453A',
+  warning: '#FF9F0A',
+  info: '#0A84FF',
+  purple: '#BF5AF2',
+
+  // Priority
+  p1: '#FF453A',
+  p1Bg: 'rgba(255,69,58,0.14)',
+  p2: '#FF9F0A',
+  p2Bg: 'rgba(255,159,10,0.14)',
+  p3: '#0A84FF',
+  p3Bg: 'rgba(10,132,255,0.14)',
+
+  // Legacy aliases
+  border: 'rgba(84,84,88,0.65)',
+  borderLight: 'rgba(84,84,88,0.36)',
+  surfaceHover: '#2C2C2E',
+  surfaceAlt: '#000000',
+} as const;
+
+export const spring = {
+  default: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+  bounce: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+  snappy: 'cubic-bezier(0.23, 1, 0.32, 1)',
+  gentle: 'cubic-bezier(0.4, 0, 0.2, 1)',
+} as const;
+
+export const radius = {
+  xs: '6px',
+  sm: '10px',
+  md: '14px',
+  lg: '18px',
+  xl: '22px',
+  full: '9999px',
 } as const;
 
 export const projectColors = [
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#3b82f6',
-  '#a855f7',
-  '#ec4899',
-  '#06b6d4',
-  '#ef4444',
-  '#84cc16',
+  '#FF6B00',
+  '#FF9F0A',
+  '#30D158',
+  '#0A84FF',
+  '#BF5AF2',
+  '#FF375F',
+  '#64D2FF',
+  '#FF453A',
+  '#34C759',
 ] as const;

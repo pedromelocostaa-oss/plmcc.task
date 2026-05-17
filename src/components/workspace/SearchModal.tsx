@@ -1,19 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, ArrowRight } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAllTasks, useBookmarks, useLinksByProject, useProjects } from "@/lib/queries";
 import { hostname } from "@/lib/format";
-import { colors } from "@/lib/tokens";
+import { colors, spring, radius } from "@/lib/tokens";
 
 export function SearchModal({ onClose }: { onClose: () => void }) {
   const [q, setQ] = useState("");
+  const [selectedIdx, setSelectedIdx] = useState(0);
   const nav = useNavigate();
   const { data: allTasks = [] } = useAllTasks();
   const { data: bookmarks = [] } = useBookmarks();
   const { data: projects = [] } = useProjects();
 
   useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowDown") { e.preventDefault(); setSelectedIdx((i) => i + 1); }
+      if (e.key === "ArrowUp") { e.preventDefault(); setSelectedIdx((i) => Math.max(0, i - 1)); }
+    }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
@@ -53,7 +58,7 @@ export function SearchModal({ onClose }: { onClose: () => void }) {
       if (match) {
         out.push({
           kind: "bookmark", id: b.id, title: b.title || hostname(b.url), sub: b.tag || hostname(b.url),
-          color: "#a855f7", onClick: () => window.open(b.url, "_blank"),
+          color: "#BF5AF2", onClick: () => window.open(b.url, "_blank"),
         });
       }
     });
@@ -61,58 +66,152 @@ export function SearchModal({ onClose }: { onClose: () => void }) {
     return out.slice(0, 30);
   }, [q, allTasks, bookmarks, projects, nav, onClose]);
 
+  // clamp selected index
+  const clampedIdx = Math.min(selectedIdx, Math.max(0, results.length - 1));
+
   return (
-    <div onClick={onClose} style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 100,
-      display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: 100,
-    }}>
-      <div onClick={(e) => e.stopPropagation()} style={{
-        width: 560, background: colors.surface, border: `1px solid ${colors.border}`,
-        borderRadius: 10, overflow: "hidden", boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
-      }}>
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.6)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        zIndex: 200,
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "center",
+        paddingTop: 80,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: 580,
+          background: "rgba(28,28,30,0.92)",
+          backdropFilter: "blur(30px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(30px) saturate(1.8)",
+          border: "1px solid rgba(255,255,255,0.1)",
+          borderRadius: radius.xl,
+          overflow: "hidden",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.7), 0 0 0 0.5px rgba(255,255,255,0.05) inset",
+          animation: "spotlightIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        }}
+      >
+        <style>{`
+          @keyframes spotlightIn {
+            from { opacity: 0; transform: scale(0.94) translateY(-12px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+          }
+        `}</style>
+
+        {/* Search input row */}
         <div style={{
-          display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
-          borderBottom: `1px solid ${colors.borderLight}`,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "14px 18px",
+          borderBottom: q.length >= 2 && results.length > 0 ? `1px solid rgba(84,84,88,0.4)` : "none",
         }}>
-          <Search size={16} color={colors.textSecondary} />
+          <Search size={18} color={colors.textMuted} />
           <input
-            autoFocus value={q} onChange={(e) => setQ(e.target.value)}
+            autoFocus
+            value={q}
+            onChange={(e) => { setQ(e.target.value); setSelectedIdx(0); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && results[clampedIdx]) results[clampedIdx].onClick();
+            }}
             placeholder="Buscar tarefas, projetos, bookmarks..."
-            style={{ flex: 1, background: "transparent", border: "none", color: colors.text, fontSize: 14 }}
+            style={{
+              flex: 1,
+              background: "transparent",
+              border: "none",
+              color: colors.text,
+              fontSize: 17,
+              fontWeight: 400,
+              letterSpacing: "-0.01em",
+            }}
           />
-          <span className="kbd">esc</span>
+          <span className="kbd" style={{ flexShrink: 0 }}>esc</span>
         </div>
 
-        <div style={{ maxHeight: 400, overflowY: "auto" }}>
+        {/* Results */}
+        <div style={{ maxHeight: 420, overflowY: "auto" }}>
           {q.length < 2 ? (
-            <div style={{ padding: 32, color: colors.textMuted, fontSize: 12 }}>
-              <div style={{ marginBottom: 14 }}>Digite ao menos 2 caracteres.</div>
-              <div style={{ fontFamily: "JetBrains Mono, monospace", color: colors.textSecondary, marginBottom: 8 }}>ATALHOS</div>
+            <div style={{ padding: "20px 20px 24px" }}>
+              <div style={{ color: colors.textMuted, fontSize: 12, marginBottom: 16 }}>
+                Digite ao menos 2 caracteres para buscar.
+              </div>
+              <div style={{ color: colors.textMuted, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+                Atalhos
+              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <div><span className="kbd">N</span> nova tarefa</div>
-                <div><span className="kbd">/</span> abrir busca</div>
-                <div><span className="kbd">esc</span> fechar</div>
+                {[
+                  { key: "⌘K / /", label: "abrir busca" },
+                  { key: "↑↓", label: "navegar" },
+                  { key: "↵", label: "selecionar" },
+                  { key: "Esc", label: "fechar" },
+                ].map(({ key, label }) => (
+                  <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span className="kbd">{key}</span>
+                    <span style={{ color: colors.textSecondary, fontSize: 12 }}>{label}</span>
+                  </div>
+                ))}
               </div>
             </div>
           ) : results.length === 0 ? (
-            <div style={{ padding: 24, color: colors.textMuted, fontSize: 13 }}>
+            <div style={{ padding: "32px 20px", color: colors.textMuted, fontSize: 14, textAlign: "center" }}>
               Nada encontrado para &quot;{q}&quot;
             </div>
-          ) : results.map((r) => (
-            <button key={r.kind + r.id} onClick={r.onClick} style={{
-              width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 16px",
-              background: "transparent", border: "none", borderBottom: `1px solid ${colors.borderLight}`,
-              color: colors.text, cursor: "pointer", textAlign: "left",
-            }}>
-              <span style={{ width: 8, height: 8, borderRadius: 4, background: r.color, flexShrink: 0 }} />
+          ) : results.map((r, i) => (
+            <button
+              key={r.kind + r.id}
+              onClick={r.onClick}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "11px 18px",
+                background: i === clampedIdx ? "rgba(255,255,255,0.07)" : "transparent",
+                border: "none",
+                borderBottom: i < results.length - 1 ? `1px solid rgba(84,84,88,0.25)` : "none",
+                color: colors.text,
+                cursor: "pointer",
+                textAlign: "left",
+                transition: `background 0.12s ${spring.gentle}`,
+              }}
+            >
+              <span style={{
+                width: 10,
+                height: 10,
+                borderRadius: 5,
+                background: r.color,
+                flexShrink: 0,
+                boxShadow: `0 0 8px ${r.color}66`,
+              }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title}</div>
-                {r.sub && <div style={{ fontSize: 11, color: colors.textMuted }}>{r.sub}</div>}
+                <div style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}>{r.title}</div>
+                {r.sub && <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>{r.sub}</div>}
               </div>
               <span style={{
-                fontFamily: "JetBrains Mono, monospace", fontSize: 9, padding: "2px 6px", borderRadius: 4,
-                background: colors.borderLight, color: colors.textSecondary,
+                fontSize: 9,
+                padding: "2px 7px",
+                borderRadius: "99px",
+                background: "rgba(84,84,88,0.4)",
+                color: colors.textSecondary,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                flexShrink: 0,
               }}>{r.kind}</span>
+              {i === clampedIdx && <ArrowRight size={13} color={colors.textMuted} />}
             </button>
           ))}
         </div>
