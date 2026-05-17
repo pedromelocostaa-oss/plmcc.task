@@ -86,15 +86,26 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <SearchProvider>
-        <div style={{ display: "flex", height: "100vh", background: "#0d1117", color: "#e6edf3", overflow: "hidden" }}>
-          <Sidebar />
-          <main style={{ flex: 1, height: "100vh", overflowY: "auto", position: "relative" }}>
-            <Outlet />
-          </main>
-        </div>
-        <Toaster theme="dark" position="bottom-right" />
-      </SearchProvider>
+      <ThemeProvider>
+        <SearchProvider>
+          <AppShell />
+        </SearchProvider>
+      </ThemeProvider>
     </QueryClientProvider>
+  );
+}
+
+function AppShell() {
+  const { theme } = useTheme();
+  return (
+    <>
+      <div style={{ display: "flex", height: "100vh", background: "var(--hq-bg)", color: "var(--hq-text)", overflow: "hidden" }}>
+        <Sidebar />
+        <main style={{ flex: 1, height: "100vh", overflowY: "auto", position: "relative" }}>
+          <Outlet />
+        </main>
+      </div>
+      <Toaster theme={theme === "light" ? "light" : "dark"} position="bottom-right" />
+    </>
   );
 }
