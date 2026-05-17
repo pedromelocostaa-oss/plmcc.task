@@ -9,6 +9,7 @@ import appCss from "../styles.css?url";
 import { Toaster } from "sonner";
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { ThemeProvider, useTheme } from "@/hooks/use-theme";
 
 // ─── Search context ───────────────────────────────────────────────────────────
 
