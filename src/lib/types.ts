@@ -36,7 +36,7 @@ export type Task = {
   id: string;
   project_id: string;
   title: string;
-  description: string | null;
+  description: string;
   status: 'todo' | 'doing' | 'done';
   priority: 1 | 2 | 3;
   due_date: string | null;

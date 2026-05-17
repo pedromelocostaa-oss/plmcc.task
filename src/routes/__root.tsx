@@ -9,6 +9,7 @@ import appCss from "../styles.css?url";
 import { Toaster } from "sonner";
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { ThemeProvider, useTheme } from "@/hooks/use-theme";
 
 // ─── Search context ───────────────────────────────────────────────────────────
 
@@ -61,13 +62,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: () => (
-    <div style={{ padding: 40, color: "#e6edf3", background: "#0d1117", height: "100vh" }}>
-      404 — <a href="/" style={{ color: "#f97316" }}>voltar</a>
+    <div style={{ padding: 40, color: "var(--hq-text)", background: "var(--hq-bg)", height: "100vh" }}>
+      404 — <a href="/" style={{ color: "var(--hq-accent)" }}>voltar</a>
     </div>
   ),
   errorComponent: ({ error }) => (
-    <div style={{ padding: 40, color: "#e6edf3", background: "#0d1117", height: "100vh" }}>
-      <pre style={{ color: "#ef4444" }}>{error.message}</pre>
+    <div style={{ padding: 40, color: "var(--hq-text)", background: "var(--hq-bg)", height: "100vh" }}>
+      <pre style={{ color: "var(--hq-danger)" }}>{error.message}</pre>
     </div>
   ),
 });
@@ -85,15 +86,26 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <SearchProvider>
-        <div style={{ display: "flex", height: "100vh", background: "#0d1117", color: "#e6edf3", overflow: "hidden" }}>
-          <Sidebar />
-          <main style={{ flex: 1, height: "100vh", overflowY: "auto", position: "relative" }}>
-            <Outlet />
-          </main>
-        </div>
-        <Toaster theme="dark" position="bottom-right" />
-      </SearchProvider>
+      <ThemeProvider>
+        <SearchProvider>
+          <AppShell />
+        </SearchProvider>
+      </ThemeProvider>
     </QueryClientProvider>
+  );
+}
+
+function AppShell() {
+  const { theme } = useTheme();
+  return (
+    <>
+      <div style={{ display: "flex", height: "100vh", background: "var(--hq-bg)", color: "var(--hq-text)", overflow: "hidden" }}>
+        <Sidebar />
+        <main style={{ flex: 1, height: "100vh", overflowY: "auto", position: "relative" }}>
+          <Outlet />
+        </main>
+      </div>
+      <Toaster theme={theme === "light" ? "light" : "dark"} position="bottom-right" />
+    </>
   );
 }

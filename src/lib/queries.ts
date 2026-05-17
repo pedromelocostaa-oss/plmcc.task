@@ -272,9 +272,9 @@ export function useCreateTask() {
       const { data: result, error } = await supabase
         .from("tasks")
         .insert({
-          project_id: data.project_id,
+        project_id: data.project_id,
           title: data.title,
-          description: data.description ?? null,
+          description: data.description ?? '',
           status: data.status ?? 'todo',
           priority: data.priority ?? 2,
           due_date: data.due_date ?? null,

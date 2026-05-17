@@ -2,13 +2,14 @@ import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Home, LayoutGrid, Search, Bookmark, Plus, Download,
-  Archive, ChevronDown, ChevronRight, RotateCcw,
+  Archive, ChevronDown, ChevronRight, RotateCcw, Sun, Moon,
 } from "lucide-react";
 import { useProjects, useArchivedProjects, useBookmarks, useCreateProject, useArchiveProject, useUnarchiveProject, useTasksByProject } from "@/lib/queries";
 import { PROJECT_COLORS } from "@/lib/types";
 import { useSearch } from "@/routes/__root";
 import { SearchModal } from "@/components/workspace/SearchModal";
 import { colors } from "@/lib/tokens";
+import { useTheme } from "@/hooks/use-theme";
 
 export function Sidebar() {
   const { data: projects = [] } = useProjects();
@@ -18,6 +19,7 @@ export function Sidebar() {
   const archiveProject = useArchiveProject();
   const unarchiveProject = useUnarchiveProject();
   const { open: searchOpen, openSearch, closeSearch } = useSearch();
+  const { theme, toggle } = useTheme();
 
   const [creating, setCreating] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -172,9 +174,13 @@ export function Sidebar() {
         </div>
 
         {/* Footer */}
-        <div style={{ borderTop: `1px solid ${colors.borderLight}`, padding: 8 }}>
+        <div style={{ borderTop: `1px solid ${colors.borderLight}`, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
           <button onClick={handleExport} style={{ ...navBtnStyle(false), color: colors.textSecondary, fontSize: 12 }}>
             <Download size={13} /><span>Exportar JSON</span>
+          </button>
+          <button onClick={toggle} style={{ ...navBtnStyle(false), color: colors.textSecondary, fontSize: 12 }}>
+            {theme === "light" ? <Moon size={13} /> : <Sun size={13} />}
+            <span>{theme === "light" ? "Modo escuro" : "Modo claro"}</span>
           </button>
         </div>
       </aside>
