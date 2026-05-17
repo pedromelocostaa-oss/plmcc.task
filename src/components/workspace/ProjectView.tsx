@@ -475,7 +475,7 @@ function TaskCard({
 
 type TaskFormData = {
   title: string;
-  description?: string | null;
+  description?: string;
   priority: Task['priority'];
   due_date?: string | null;
 };
