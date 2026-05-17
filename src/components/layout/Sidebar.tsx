@@ -2,13 +2,14 @@ import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Home, LayoutGrid, Search, Bookmark, Plus, Download,
-  Archive, ChevronDown, ChevronRight, RotateCcw,
+  Archive, ChevronDown, ChevronRight, RotateCcw, Sun, Moon,
 } from "lucide-react";
 import { useProjects, useArchivedProjects, useBookmarks, useCreateProject, useArchiveProject, useUnarchiveProject, useTasksByProject } from "@/lib/queries";
 import { PROJECT_COLORS } from "@/lib/types";
 import { useSearch } from "@/routes/__root";
 import { SearchModal } from "@/components/workspace/SearchModal";
 import { colors } from "@/lib/tokens";
+import { useTheme } from "@/hooks/use-theme";
 
 export function Sidebar() {
   const { data: projects = [] } = useProjects();
