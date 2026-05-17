@@ -19,6 +19,7 @@ export function Sidebar() {
   const archiveProject = useArchiveProject();
   const unarchiveProject = useUnarchiveProject();
   const { open: searchOpen, openSearch, closeSearch } = useSearch();
+  const { theme, toggle } = useTheme();
 
   const [creating, setCreating] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
