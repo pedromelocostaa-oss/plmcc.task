@@ -37,9 +37,50 @@ export type Database = {
         Relationships: []
       }
       tasks: {
-        Row: { completed_at: string | null; created_at: string; description: string; due_date: string | null; id: string; position: number; priority: number; project_id: string; status: string; title: string; updated_at: string }
-        Insert: { completed_at?: string | null; created_at?: string; description?: string; due_date?: string | null; id?: string; position?: number; priority?: number; project_id: string; status?: string; title: string; updated_at?: string }
-        Update: { completed_at?: string | null; created_at?: string; description?: string; due_date?: string | null; id?: string; position?: number; priority?: number; project_id?: string; status?: string; title?: string; updated_at?: string }
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string
+          due_date: string | null
+          id: string
+          position: number
+          priority: number
+          project_id: string
+          status: string
+          title: string
+          updated_at: string
+          // virtual relations
+          subtasks?: { id: string; task_id: string; title: string; done: boolean; position: number; created_at: string }[]
+          task_tags?: { id: string; task_id: string; tag: string; created_at: string }[]
+          task_comments?: { id: string; task_id: string; content: string; created_at: string }[]
+          project?: { name: string; color: string }
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          position?: number
+          priority?: number
+          project_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          position?: number
+          priority?: number
+          project_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
         Relationships: [{ foreignKeyName: "tasks_project_id_fkey"; columns: ["project_id"]; isOneToOne: false; referencedRelation: "projects"; referencedColumns: ["id"] }]
       }
       subtasks: {
@@ -108,7 +149,7 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"] : never = never,
-> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions] : never
