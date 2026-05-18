@@ -1,9 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, RefreshCw, CalendarDays, ExternalLink, MapPin } from "lucide-react";
-import { fetchCalendarEvents } from "@/lib/calendar-ics.server";
-import type { CalendarEvent } from "@/lib/calendar-ics.server";
+import type { CalendarEvent } from "@/lib/calendar-api";
 import { colors, spring, radius } from "@/lib/tokens";
+
+// Plain fetch — no createServerFn, works in every environment
+async function fetchCalendarEvents(date: string): Promise<CalendarEvent[]> {
+  try {
+    const res = await fetch(`/api/calendar?date=${encodeURIComponent(date)}`);
+    if (!res.ok) return [];
+    return res.json() as Promise<CalendarEvent[]>;
+  } catch {
+    return [];
+  }
+}
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
@@ -178,7 +188,7 @@ export function DayCalendar({ isoDate, isToday }: DayCalendarProps) {
   // Scroll to current time (today) or first event (other days)
   const { data: events = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ["calendar-events", isoDate],
-    queryFn: () => fetchCalendarEvents({ data: { date: isoDate } }),
+    queryFn: () => fetchCalendarEvents(isoDate),
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
