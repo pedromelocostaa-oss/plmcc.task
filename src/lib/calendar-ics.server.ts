@@ -147,26 +147,45 @@ function getIcsUrl(): string {
   return '';
 }
 
-export const fetchCalendarEvents = createServerFn({ method: 'GET' })
-  .handler(async (ctx: { data: { date: string } }): Promise<CalendarEvent[]> => {
-    const icsUrl = getIcsUrl();
-    if (!icsUrl) {
-      console.warn('[DayCalendar] GOOGLE_CALENDAR_ICS_URL not set');
-      return [];
-    }
+// ── Safe wrapper ─────────────────────────────────────────────────────────────
+// Some build environments (e.g. Lovable preview) inject a .validator() call
+// that doesn't exist in this runtime version, throwing a TypeError at module
+// load time. We catch it here so the rest of the app keeps working — the
+// calendar section simply shows empty in those environments.
 
-    try {
-      const res = await fetch(icsUrl, {
-        headers: { 'User-Agent': 'PedroHQ/1.0', 'Accept': 'text/calendar' },
-      });
-      if (!res.ok) {
-        console.warn('[DayCalendar] ICS fetch failed:', res.status);
-        return [];
-      }
-      const text = await res.text();
-      return parseIcs(text, ctx.data.date);
-    } catch (err) {
-      console.error('[DayCalendar] ICS error:', err);
-      return [];
-    }
-  });
+type CalendarFn = (opts: { data: { date: string } }) => Promise<CalendarEvent[]>;
+
+const _noop: CalendarFn = async () => [];
+
+function _buildServerFn(): CalendarFn {
+  try {
+    return createServerFn({ method: 'GET' })
+      .handler(async (ctx: { data: { date: string } }): Promise<CalendarEvent[]> => {
+        const icsUrl = getIcsUrl();
+        if (!icsUrl) {
+          console.warn('[DayCalendar] GOOGLE_CALENDAR_ICS_URL not set');
+          return [];
+        }
+
+        try {
+          const res = await fetch(icsUrl, {
+            headers: { 'User-Agent': 'PedroHQ/1.0', 'Accept': 'text/calendar' },
+          });
+          if (!res.ok) {
+            console.warn('[DayCalendar] ICS fetch failed:', res.status);
+            return [];
+          }
+          const text = await res.text();
+          return parseIcs(text, ctx.data.date);
+        } catch (err) {
+          console.error('[DayCalendar] ICS error:', err);
+          return [];
+        }
+      }) as unknown as CalendarFn;
+  } catch {
+    // createServerFn not compatible with this environment — return no-op.
+    return _noop;
+  }
+}
+
+export const fetchCalendarEvents: CalendarFn = _buildServerFn();
