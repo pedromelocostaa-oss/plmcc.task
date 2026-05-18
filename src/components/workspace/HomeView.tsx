@@ -43,9 +43,15 @@ const COLUMNS: { status: Task["status"]; label: string; accent: string; accentBg
 function KanbanCard({
   task,
   onMove,
+  onDragStart,
+  onDragEnd,
+  isDragging,
 }: {
   task: Task;
   onMove: (status: Task["status"]) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
+  isDragging?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const project = task.project as { name: string; color: string } | undefined;
@@ -66,6 +72,13 @@ function KanbanCard({
 
   return (
     <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", task.id);
+        onDragStart?.();
+      }}
+      onDragEnd={onDragEnd}
       style={{
         background: "rgba(28,28,30,0.9)",
         backdropFilter: "blur(16px)",
@@ -75,8 +88,10 @@ function KanbanCard({
         overflow: "hidden",
         boxShadow: "0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)",
         marginBottom: 8,
-        transition: `box-shadow 0.2s ${spring.gentle}`,
-        cursor: "pointer",
+        transition: `box-shadow 0.2s ${spring.gentle}, opacity 0.15s`,
+        cursor: "grab",
+        opacity: isDragging ? 0.4 : 1,
+        transform: isDragging ? "scale(0.97)" : "none",
       }}
       onClick={() => setExpanded((v) => !v)}
     >
@@ -220,23 +235,41 @@ function KanbanCard({
 // ── KanbanColumn ──────────────────────────────────────────────────────────────
 
 function KanbanColumn({
-  config, tasks, onMove,
+  config, tasks, onMove, draggedTaskId,
+  onDragOver, onDrop, onDragLeave, isDragOver,
+  onCardDragStart, onCardDragEnd,
 }: {
   config: typeof COLUMNS[number];
   tasks: Task[];
   onMove: (id: string, status: Task["status"]) => void;
+  draggedTaskId: string | null;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
+  onDragLeave: () => void;
+  isDragOver: boolean;
+  onCardDragStart: (id: string) => void;
+  onCardDragEnd: () => void;
 }) {
   return (
-    <div style={{
-      flex: 1,
-      minWidth: 0,
-      display: "flex",
-      flexDirection: "column",
-      background: "rgba(28,28,30,0.4)",
-      borderRadius: radius.lg,
-      border: "1px solid rgba(255,255,255,0.05)",
-      overflow: "hidden",
-    }}>
+    <div
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragLeave={onDragLeave}
+      style={{
+        flex: 1,
+        minWidth: 0,
+        display: "flex",
+        flexDirection: "column",
+        background: isDragOver ? config.accentBg : "rgba(28,28,30,0.4)",
+        borderRadius: radius.lg,
+        border: isDragOver
+          ? `1px solid ${config.accent}60`
+          : "1px solid rgba(255,255,255,0.05)",
+        overflow: "hidden",
+        transition: `background 0.15s ${spring.gentle}, border-color 0.15s ${spring.gentle}`,
+        boxShadow: isDragOver ? `0 0 0 2px ${config.accent}30` : "none",
+      }}
+    >
       {/* Column header */}
       <div style={{
         padding: "11px 14px",
@@ -273,7 +306,14 @@ function KanbanColumn({
           </div>
         )}
         {tasks.map((t) => (
-          <KanbanCard key={t.id} task={t} onMove={(status) => onMove(t.id, status)} />
+          <KanbanCard
+            key={t.id}
+            task={t}
+            onMove={(status) => onMove(t.id, status)}
+            isDragging={draggedTaskId === t.id}
+            onDragStart={() => onCardDragStart(t.id)}
+            onDragEnd={onCardDragEnd}
+          />
         ))}
       </div>
     </div>
@@ -289,6 +329,8 @@ export function HomeView() {
   const [sortByPriority, setSortByPriority] = useState(false);
   const [mobileColumn, setMobileColumn] = useState<Task["status"]>("todo");
   const [showCalendar, setShowCalendar] = useState(false);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<Task["status"] | null>(null);
   const isMobile = useIsMobile();
   const setStatus = useSetTaskStatus();
 
@@ -322,6 +364,15 @@ export function HomeView() {
       { id, status, projectId: task.project_id },
       { onError: () => toast.error("Erro ao mover tarefa") }
     );
+  }
+
+  function handleDrop(targetStatus: Task["status"]) {
+    if (!draggedTaskId) return;
+    const task = allTasks.find((t) => t.id === draggedTaskId);
+    if (!task || task.status === targetStatus) return;
+    handleMove(draggedTaskId, targetStatus);
+    setDraggedTaskId(null);
+    setDragOverColumn(null);
   }
 
   const activeProjects = projects.filter((p) => !p.archived);
@@ -542,7 +593,19 @@ export function HomeView() {
               ))
             ) : (
               columns.map((col) => (
-                <KanbanColumn key={col.status} config={col} tasks={col.tasks} onMove={handleMove} />
+                <KanbanColumn
+                  key={col.status}
+                  config={col}
+                  tasks={col.tasks}
+                  onMove={handleMove}
+                  draggedTaskId={draggedTaskId}
+                  isDragOver={dragOverColumn === col.status}
+                  onDragOver={(e) => { e.preventDefault(); setDragOverColumn(col.status); }}
+                  onDrop={(e) => { e.preventDefault(); handleDrop(col.status); }}
+                  onDragLeave={() => setDragOverColumn(null)}
+                  onCardDragStart={(id) => setDraggedTaskId(id)}
+                  onCardDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); }}
+                />
               ))
             )}
           </div>
