@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, CalendarDays, AlignLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useProjects, useTasksForDate, useSetTaskStatus } from "@/lib/queries";
 import type { Task } from "@/lib/types";
@@ -70,6 +70,8 @@ function KanbanCard({
     .filter((c) => c.status !== task.status)
     .map((c) => ({ ...c }));
 
+  const hasDetails = !!(task.description || subtasks.length > 0 || tags.length > 0 || task.due_date);
+
   return (
     <div
       draggable
@@ -80,20 +82,26 @@ function KanbanCard({
       }}
       onDragEnd={onDragEnd}
       style={{
-        background: "rgba(28,28,30,0.9)",
+        background: expanded
+          ? "rgba(36,36,40,0.98)"
+          : "rgba(28,28,30,0.9)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
-        border: "1px solid rgba(255,255,255,0.07)",
+        border: expanded
+          ? `1px solid ${p.color}30`
+          : "1px solid rgba(255,255,255,0.07)",
         borderRadius: radius.md,
         overflow: "hidden",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)",
+        boxShadow: expanded
+          ? `0 4px 24px rgba(0,0,0,0.5), 0 0 0 1px ${p.color}18, inset 0 1px 0 rgba(255,255,255,0.06)`
+          : "0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)",
         marginBottom: 8,
-        transition: `box-shadow 0.2s ${spring.gentle}, opacity 0.15s`,
+        transition: `background 0.2s ${spring.gentle}, border-color 0.2s ${spring.gentle}, box-shadow 0.2s ${spring.gentle}, opacity 0.15s`,
         cursor: "grab",
         opacity: isDragging ? 0.4 : 1,
         transform: isDragging ? "scale(0.97)" : "none",
       }}
-      onClick={() => setExpanded((v) => !v)}
+      onClick={() => hasDetails && setExpanded((v) => !v)}
     >
       {/* Card body */}
       <div style={{ padding: "10px 12px" }}>
@@ -109,6 +117,8 @@ function KanbanCard({
           )}
           <span style={{
             fontSize: 9, fontWeight: 700, color: p.color,
+            background: `${p.color}15`,
+            padding: "1px 5px", borderRadius: 4,
             flexShrink: 0, letterSpacing: "0.04em",
           }}>{p.label}</span>
         </div>
@@ -123,7 +133,7 @@ function KanbanCard({
           {task.title}
         </div>
 
-        {/* Footer: date + tags + subtasks */}
+        {/* Footer: date + tags + subtasks + expand hint */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           {task.due_date && (
             <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: colors.textMuted }}>
@@ -132,8 +142,17 @@ function KanbanCard({
             </span>
           )}
           {subtasks.length > 0 && (
-            <span style={{ fontSize: 10, color: colors.textMuted }}>
-              {doneSubs}/{subtasks.length} sub
+            <span style={{
+              display: "flex", alignItems: "center", gap: 3,
+              fontSize: 10, color: doneSubs === subtasks.length ? colors.success : colors.textMuted,
+            }}>
+              <Check size={9} />
+              {doneSubs}/{subtasks.length}
+            </span>
+          )}
+          {task.description && (
+            <span style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 10, color: colors.textMuted }}>
+              <AlignLeft size={9} />
             </span>
           )}
           {tags.slice(0, 2).map((t) => (
@@ -142,69 +161,145 @@ function KanbanCard({
               background: "rgba(191,90,242,0.15)", color: "#BF5AF2",
             }}>{t.tag}</span>
           ))}
-          <span style={{ marginLeft: "auto", color: colors.textMuted }}>
-            {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-          </span>
+          {hasDetails && (
+            <span style={{ marginLeft: "auto", color: expanded ? p.color : colors.textMuted, transition: `color 0.2s` }}>
+              {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Expanded section */}
+      {/* ── Expanded detail panel ─────────────────────────────────── */}
       {expanded && (
         <div
           onClick={(e) => e.stopPropagation()}
           style={{
-            borderTop: "1px solid rgba(84,84,88,0.25)",
-            padding: "10px 12px",
-            display: "flex", flexDirection: "column", gap: 10,
+            borderTop: `1px solid ${p.color}20`,
+            animation: `cardExpand 0.18s ease-out`,
           }}
         >
-          {/* Description */}
+          <style>{`
+            @keyframes cardExpand {
+              from { opacity: 0; transform: translateY(-6px); }
+              to   { opacity: 1; transform: translateY(0); }
+            }
+          `}</style>
+
+          {/* Description block */}
           {task.description && (
-            <p style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 1.5, margin: 0 }}>
-              {task.description}
-            </p>
+            <div style={{
+              padding: "12px 14px",
+              borderBottom: subtasks.length > 0 || tags.length > 0
+                ? "1px solid rgba(84,84,88,0.18)"
+                : "none",
+            }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6,
+                marginBottom: 6,
+              }}>
+                <AlignLeft size={11} color={colors.textMuted} />
+                <span style={{ fontSize: 10, color: colors.textMuted, textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>
+                  Descrição
+                </span>
+              </div>
+              <p style={{
+                fontSize: 13, color: colors.textSecondary,
+                lineHeight: 1.65, margin: 0,
+                whiteSpace: "pre-wrap",
+              }}>
+                {task.description}
+              </p>
+            </div>
           )}
 
           {/* Subtasks */}
           {subtasks.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <div style={{ fontSize: 10, color: colors.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
-                Subtarefas
-              </div>
-              {subtasks.map((s) => (
-                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-                  <span style={{
-                    width: 14, height: 14, borderRadius: 7, border: `1.5px solid ${s.done ? colors.success : colors.separator}`,
-                    background: s.done ? colors.success : "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                  }}>
-                    {s.done && <Check size={8} color="#000" strokeWidth={3} />}
-                  </span>
-                  <span style={{ color: s.done ? colors.textMuted : colors.text, textDecoration: s.done ? "line-through" : "none" }}>
-                    {s.title}
+            <div style={{
+              padding: "12px 14px",
+              borderBottom: tags.length > 0
+                ? "1px solid rgba(84,84,88,0.18)"
+                : "none",
+            }}>
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                marginBottom: 8,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Check size={11} color={colors.textMuted} />
+                  <span style={{ fontSize: 10, color: colors.textMuted, textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>
+                    Subtarefas
                   </span>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* All tags */}
-          {tags.length > 2 && (
-            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-              {tags.map((t) => (
-                <span key={t.id} style={{
-                  fontSize: 9, padding: "2px 7px", borderRadius: "99px",
-                  background: "rgba(191,90,242,0.15)", color: "#BF5AF2",
-                  display: "flex", alignItems: "center", gap: 3,
-                }}>
-                  <Tag size={7} />{t.tag}
+                <span style={{ fontSize: 10, color: doneSubs === subtasks.length ? colors.success : colors.textMuted, fontWeight: 600 }}>
+                  {doneSubs}/{subtasks.length}
                 </span>
-              ))}
+              </div>
+              {/* Progress bar */}
+              <div style={{
+                height: 3, borderRadius: 2,
+                background: "rgba(84,84,88,0.25)",
+                marginBottom: 10, overflow: "hidden",
+              }}>
+                <div style={{
+                  height: "100%",
+                  width: `${subtasks.length ? (doneSubs / subtasks.length) * 100 : 0}%`,
+                  background: doneSubs === subtasks.length ? colors.success : colors.accent,
+                  borderRadius: 2,
+                  transition: "width 0.3s ease",
+                }} />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {subtasks.map((s) => (
+                  <div key={s.id} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                    <span style={{
+                      width: 16, height: 16, borderRadius: 8,
+                      border: `1.5px solid ${s.done ? colors.success : colors.separator}`,
+                      background: s.done ? colors.success : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0, marginTop: 1,
+                    }}>
+                      {s.done && <Check size={9} color="#000" strokeWidth={3} />}
+                    </span>
+                    <span style={{
+                      fontSize: 13, lineHeight: 1.4,
+                      color: s.done ? colors.textMuted : colors.text,
+                      textDecoration: s.done ? "line-through" : "none",
+                    }}>
+                      {s.title}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Move to column buttons */}
-          <div style={{ display: "flex", gap: 6 }}>
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(84,84,88,0.18)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 7 }}>
+                <Tag size={11} color={colors.textMuted} />
+                <span style={{ fontSize: 10, color: colors.textMuted, textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>
+                  Tags
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {tags.map((t) => (
+                  <span key={t.id} style={{
+                    fontSize: 11, padding: "3px 8px", borderRadius: "99px",
+                    background: "rgba(191,90,242,0.15)",
+                    border: "1px solid rgba(191,90,242,0.25)",
+                    color: "#BF5AF2",
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}>
+                    <Tag size={8} />{t.tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Move buttons */}
+          <div style={{ padding: "10px 14px", display: "flex", gap: 6 }}>
             {nextStatuses.map((col) => (
               <button
                 key={col.status}
@@ -212,16 +307,19 @@ function KanbanCard({
                 style={{
                   flex: 1,
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                  padding: "6px 8px",
+                  padding: "7px 8px",
                   background: col.accentBg,
-                  border: `1px solid ${col.accent}30`,
+                  border: `1px solid ${col.accent}35`,
                   borderRadius: radius.sm,
                   color: col.accent,
                   cursor: "pointer",
                   fontSize: 11, fontWeight: 600,
+                  transition: `filter 0.15s`,
                 }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.filter = "brightness(1.2)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.filter = ""; }}
               >
-                <ArrowRight size={10} />
+                <ArrowRight size={11} />
                 {col.label}
               </button>
             ))}
