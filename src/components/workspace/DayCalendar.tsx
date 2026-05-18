@@ -178,7 +178,7 @@ export function DayCalendar({ isoDate, isToday }: DayCalendarProps) {
   // Scroll to current time (today) or first event (other days)
   const { data: events = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ["calendar-events", isoDate],
-    queryFn: () => fetchCalendarEvents({ date: isoDate }),
+    queryFn: () => fetchCalendarEvents({ data: { date: isoDate } }),
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });

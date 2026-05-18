@@ -147,9 +147,8 @@ function getIcsUrl(): string {
   return '';
 }
 
-export const fetchCalendarEvents = createServerFn(
-  'GET',
-  async (data: { date: string }): Promise<CalendarEvent[]> => {
+export const fetchCalendarEvents = createServerFn({ method: 'GET' })
+  .handler(async (ctx: { data: { date: string } }): Promise<CalendarEvent[]> => {
     const icsUrl = getIcsUrl();
     if (!icsUrl) {
       console.warn('[DayCalendar] GOOGLE_CALENDAR_ICS_URL not set');
@@ -165,10 +164,9 @@ export const fetchCalendarEvents = createServerFn(
         return [];
       }
       const text = await res.text();
-      return parseIcs(text, data.date);
+      return parseIcs(text, ctx.data.date);
     } catch (err) {
       console.error('[DayCalendar] ICS error:', err);
       return [];
     }
-  }
-);
+  });
