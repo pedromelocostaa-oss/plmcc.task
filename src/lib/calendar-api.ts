@@ -107,13 +107,18 @@ function parseIcs(text: string, filterDate: string): CalendarEvent[] {
 
 // ── HTTP handler ──────────────────────────────────────────────────────────────
 
+// Fallback: the URL is already public in wrangler.jsonc in the repo.
+const FALLBACK_ICS_URL =
+  'https://calendar.google.com/calendar/ical/pedro.costa%40blisai.com/private-f4601a98da95d608fc4d08e4711664cd/basic.ics';
+
 function getIcsUrl(env: Record<string, string>): string {
-  // Cloudflare Workers env bindings take priority
+  // Cloudflare Workers env bindings
   if (env?.['GOOGLE_CALENDAR_ICS_URL']) return env['GOOGLE_CALENDAR_ICS_URL'];
   // Node / local dev
   if (typeof process !== 'undefined' && process.env?.['GOOGLE_CALENDAR_ICS_URL'])
     return process.env['GOOGLE_CALENDAR_ICS_URL'];
-  return '';
+  // Hardcoded fallback so the calendar works even if env var is not injected
+  return FALLBACK_ICS_URL;
 }
 
 export async function handleCalendarRequest(

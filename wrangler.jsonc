@@ -4,6 +4,9 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+  "assets": {
+    "not_found_handling": "none"
+  },
   "vars": {
     "GOOGLE_CALENDAR_ICS_URL": "https://calendar.google.com/calendar/ical/pedro.costa%40blisai.com/private-f4601a98da95d608fc4d08e4711664cd/basic.ics"
   }
