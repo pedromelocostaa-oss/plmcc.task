@@ -134,22 +134,40 @@ function parseIcs(text: string, filterDate: string): CalendarEvent[] {
 
 // ── Server function ───────────────────────────────────────────────────────────
 
+function getIcsUrl(): string {
+  // Try multiple env sources: process.env (Node/dev), import.meta.env (Vite/CF)
+  if (typeof process !== 'undefined' && process.env?.['GOOGLE_CALENDAR_ICS_URL']) {
+    return process.env['GOOGLE_CALENDAR_ICS_URL'];
+  }
+  // @ts-expect-error -- Vite/CF Workers env
+  if (typeof import.meta !== 'undefined' && import.meta.env?.['GOOGLE_CALENDAR_ICS_URL']) {
+    // @ts-expect-error
+    return import.meta.env['GOOGLE_CALENDAR_ICS_URL'] as string;
+  }
+  return '';
+}
+
 export const fetchCalendarEvents = createServerFn({ method: 'GET' })
   .validator((d: unknown) => d as { date: string })
   .handler(async ({ data }) => {
-    const icsUrl = process.env['GOOGLE_CALENDAR_ICS_URL'] ?? '';
-    if (!icsUrl) return [] as CalendarEvent[];
+    const icsUrl = getIcsUrl();
+    if (!icsUrl) {
+      console.warn('[DayCalendar] GOOGLE_CALENDAR_ICS_URL not set');
+      return [] as CalendarEvent[];
+    }
 
     try {
       const res = await fetch(icsUrl, {
-        headers: { 'User-Agent': 'PedroHQ/1.0' },
-        // @ts-expect-error -- CF Workers fetch options
-        cache: 'no-cache',
+        headers: { 'User-Agent': 'PedroHQ/1.0', 'Accept': 'text/calendar' },
       });
-      if (!res.ok) return [] as CalendarEvent[];
+      if (!res.ok) {
+        console.warn('[DayCalendar] ICS fetch failed:', res.status);
+        return [] as CalendarEvent[];
+      }
       const text = await res.text();
       return parseIcs(text, data.date);
-    } catch {
+    } catch (err) {
+      console.error('[DayCalendar] ICS error:', err);
       return [] as CalendarEvent[];
     }
   });

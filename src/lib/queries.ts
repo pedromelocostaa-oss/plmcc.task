@@ -742,6 +742,61 @@ export function useStats() {
   });
 }
 
+// ─── tasks for a specific date ───────────────────────────────────────────────
+
+export function useTasksForDate(date: string) {
+  return useQuery({
+    queryKey: ["tasks", "date", date],
+    queryFn: async (): Promise<Task[]> => {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*, subtasks(*), task_tags(*), project:projects(name, color)")
+        .eq("due_date", date)
+        .order("priority")
+        .order("position");
+      if (error) throw error;
+      return (data ?? []) as unknown as Task[];
+    },
+    enabled: !!date,
+  });
+}
+
+// ─── set task status directly (for kanban) ───────────────────────────────────
+
+export function useSetTaskStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status, projectId }: { id: string; status: Task['status']; projectId: string }): Promise<Task> => {
+      const completed_at = status === 'done' ? new Date().toISOString() : null;
+      const { data, error } = await supabase
+        .from("tasks")
+        .update({ status, completed_at })
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as unknown as Task;
+    },
+    onMutate: async ({ id, status }) => {
+      // Optimistic: update all date-keyed caches
+      const allKeys = qc.getQueryCache().findAll({ queryKey: ["tasks", "date"] });
+      for (const q of allKeys) {
+        qc.setQueryData<Task[]>(q.queryKey, (old) =>
+          old?.map((t) => t.id === id ? { ...t, status, completed_at: status === 'done' ? new Date().toISOString() : null } : t)
+        );
+      }
+    },
+    onSettled: (_result, _error, vars) => {
+      qc.invalidateQueries({ queryKey: ["tasks", "date"] });
+      qc.invalidateQueries({ queryKey: QK.tasksByProject(vars.projectId) });
+      qc.invalidateQueries({ queryKey: QK.tasksToday });
+      qc.invalidateQueries({ queryKey: QK.tasksOverdue });
+      qc.invalidateQueries({ queryKey: QK.allTasks() });
+      qc.invalidateQueries({ queryKey: QK.stats });
+    },
+  });
+}
+
 // ─── legacy exports (backward compat during migration) ───────────────────────
 
 export { useProjects as useProjectsList };

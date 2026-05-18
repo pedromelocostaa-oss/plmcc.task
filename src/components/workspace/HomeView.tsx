@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag } from "lucide-react";
 import { toast } from "sonner";
-import { useProjects, useTasksForToday, useCreateTask, useCycleTaskStatus } from "@/lib/queries";
+import { useProjects, useTasksForDate, useSetTaskStatus } from "@/lib/queries";
 import type { Task } from "@/lib/types";
 import { colors, spring, radius } from "@/lib/tokens";
 import { DayCalendar } from "@/components/workspace/DayCalendar";
@@ -24,292 +24,421 @@ function isTodayDate(date: Date): boolean {
 
 function formatDateLabel(date: Date): string {
   return date.toLocaleDateString("pt-BR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
+    weekday: "long", day: "numeric", month: "long",
     timeZone: "America/Sao_Paulo",
   });
 }
 
-// ── main view ─────────────────────────────────────────────────────────────────
+// ── column config ────────────────────────────────────────────────────────────
+
+const COLUMNS: { status: Task["status"]; label: string; accent: string; accentBg: string }[] = [
+  { status: "todo",  label: "A Fazer",   accent: colors.textSecondary, accentBg: "rgba(84,84,88,0.18)" },
+  { status: "doing", label: "Fazendo",   accent: colors.warning,       accentBg: "rgba(255,159,10,0.12)" },
+  { status: "done",  label: "Concluído", accent: colors.success,       accentBg: "rgba(48,209,88,0.12)" },
+];
+
+// ── KanbanCard ────────────────────────────────────────────────────────────────
+
+function KanbanCard({
+  task,
+  onMove,
+}: {
+  task: Task;
+  onMove: (status: Task["status"]) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const project = task.project as { name: string; color: string } | undefined;
+  const tags = task.task_tags ?? [];
+  const subtasks = task.subtasks ?? [];
+  const doneSubs = subtasks.filter((s) => s.done).length;
+
+  const priorityMap: Record<number, { label: string; color: string }> = {
+    1: { label: "P1", color: colors.p1 },
+    2: { label: "P2", color: colors.p2 },
+    3: { label: "P3", color: colors.p3 },
+  };
+  const p = priorityMap[task.priority] ?? priorityMap[2];
+
+  const nextStatuses = COLUMNS
+    .filter((c) => c.status !== task.status)
+    .map((c) => ({ ...c }));
+
+  return (
+    <div
+      style={{
+        background: "rgba(28,28,30,0.9)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: radius.md,
+        overflow: "hidden",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)",
+        marginBottom: 8,
+        transition: `box-shadow 0.2s ${spring.gentle}`,
+        cursor: "pointer",
+      }}
+      onClick={() => setExpanded((v) => !v)}
+    >
+      {/* Card body */}
+      <div style={{ padding: "10px 12px" }}>
+        {/* Project + priority row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
+          {project && (
+            <>
+              <span style={{ width: 7, height: 7, borderRadius: 4, background: project.color, flexShrink: 0, boxShadow: `0 0 5px ${project.color}80` }} />
+              <span style={{ fontSize: 11, color: colors.textSecondary, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {project.name}
+              </span>
+            </>
+          )}
+          <span style={{
+            fontSize: 9, fontWeight: 700, color: p.color,
+            flexShrink: 0, letterSpacing: "0.04em",
+          }}>{p.label}</span>
+        </div>
+
+        {/* Title */}
+        <div style={{
+          fontSize: 13, fontWeight: 500, lineHeight: 1.4,
+          color: task.status === "done" ? colors.textMuted : colors.text,
+          textDecoration: task.status === "done" ? "line-through" : "none",
+          marginBottom: 6,
+        }}>
+          {task.title}
+        </div>
+
+        {/* Footer: date + tags + subtasks */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          {task.due_date && (
+            <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: colors.textMuted }}>
+              <Calendar size={9} />
+              {new Date(task.due_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+            </span>
+          )}
+          {subtasks.length > 0 && (
+            <span style={{ fontSize: 10, color: colors.textMuted }}>
+              {doneSubs}/{subtasks.length} sub
+            </span>
+          )}
+          {tags.slice(0, 2).map((t) => (
+            <span key={t.id} style={{
+              fontSize: 9, padding: "1px 5px", borderRadius: "99px",
+              background: "rgba(191,90,242,0.15)", color: "#BF5AF2",
+            }}>{t.tag}</span>
+          ))}
+          <span style={{ marginLeft: "auto", color: colors.textMuted }}>
+            {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+          </span>
+        </div>
+      </div>
+
+      {/* Expanded section */}
+      {expanded && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            borderTop: "1px solid rgba(84,84,88,0.25)",
+            padding: "10px 12px",
+            display: "flex", flexDirection: "column", gap: 10,
+          }}
+        >
+          {/* Description */}
+          {task.description && (
+            <p style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 1.5, margin: 0 }}>
+              {task.description}
+            </p>
+          )}
+
+          {/* Subtasks */}
+          {subtasks.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ fontSize: 10, color: colors.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 2 }}>
+                Subtarefas
+              </div>
+              {subtasks.map((s) => (
+                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                  <span style={{
+                    width: 14, height: 14, borderRadius: 7, border: `1.5px solid ${s.done ? colors.success : colors.separator}`,
+                    background: s.done ? colors.success : "transparent",
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>
+                    {s.done && <Check size={8} color="#000" strokeWidth={3} />}
+                  </span>
+                  <span style={{ color: s.done ? colors.textMuted : colors.text, textDecoration: s.done ? "line-through" : "none" }}>
+                    {s.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* All tags */}
+          {tags.length > 2 && (
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              {tags.map((t) => (
+                <span key={t.id} style={{
+                  fontSize: 9, padding: "2px 7px", borderRadius: "99px",
+                  background: "rgba(191,90,242,0.15)", color: "#BF5AF2",
+                  display: "flex", alignItems: "center", gap: 3,
+                }}>
+                  <Tag size={7} />{t.tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Move to column buttons */}
+          <div style={{ display: "flex", gap: 6 }}>
+            {nextStatuses.map((col) => (
+              <button
+                key={col.status}
+                onClick={() => { onMove(col.status); setExpanded(false); }}
+                style={{
+                  flex: 1,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                  padding: "6px 8px",
+                  background: col.accentBg,
+                  border: `1px solid ${col.accent}30`,
+                  borderRadius: radius.sm,
+                  color: col.accent,
+                  cursor: "pointer",
+                  fontSize: 11, fontWeight: 600,
+                }}
+              >
+                <ArrowRight size={10} />
+                {col.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── KanbanColumn ──────────────────────────────────────────────────────────────
+
+function KanbanColumn({
+  config, tasks, onMove,
+}: {
+  config: typeof COLUMNS[number];
+  tasks: Task[];
+  onMove: (id: string, status: Task["status"]) => void;
+}) {
+  return (
+    <div style={{
+      flex: 1,
+      minWidth: 0,
+      display: "flex",
+      flexDirection: "column",
+      background: "rgba(28,28,30,0.4)",
+      borderRadius: radius.lg,
+      border: "1px solid rgba(255,255,255,0.05)",
+      overflow: "hidden",
+    }}>
+      {/* Column header */}
+      <div style={{
+        padding: "11px 14px",
+        borderBottom: "1px solid rgba(84,84,88,0.25)",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        flexShrink: 0,
+      }}>
+        <div style={{ width: 8, height: 8, borderRadius: 4, background: config.accent, flexShrink: 0 }} />
+        <span style={{ fontSize: 13, fontWeight: 600, flex: 1, letterSpacing: "-0.01em" }}>
+          {config.label}
+        </span>
+        <span style={{
+          fontSize: 10, padding: "2px 7px", borderRadius: "99px",
+          background: config.accentBg,
+          color: config.accent,
+          fontVariantNumeric: "tabular-nums",
+          fontWeight: 600,
+        }}>
+          {tasks.length}
+        </span>
+      </div>
+
+      {/* Cards */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px 12px" }}>
+        {tasks.length === 0 && (
+          <div style={{
+            textAlign: "center", padding: "24px 8px",
+            color: colors.textMuted, fontSize: 12,
+            fontStyle: "italic",
+          }}>
+            {config.status === "done" ? "Nenhuma tarefa concluída" : "Vazio"}
+          </div>
+        )}
+        {tasks.map((t) => (
+          <KanbanCard key={t.id} task={t} onMove={(status) => onMove(t.id, status)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── HomeView ──────────────────────────────────────────────────────────────────
 
 export function HomeView() {
   const { data: projects = [] } = useProjects();
-  const { data: tasks = [], isLoading } = useTasksForToday();
-  const createTask = useCreateTask();
-  const cycleStatus = useCycleTaskStatus();
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
-  const [quickAddId, setQuickAddId] = useState<string | null>(null);
+  const [projectFilter, setProjectFilter] = useState<string | null>(null);
+  const [sortByPriority, setSortByPriority] = useState(false);
+  const setStatus = useSetTaskStatus();
 
-  const active = projects.filter((p) => !p.archived);
   const selectedIso = toIso(selectedDate);
   const isToday = isTodayDate(selectedDate);
 
-  const tasksByProject = useMemo(() => {
-    const map: Record<string, Task[]> = {};
-    for (const p of active) {
-      map[p.id] = tasks
-        .filter((t) => t.project_id === p.id && t.due_date === selectedIso)
-        .sort((a, b) => a.priority - b.priority);
-    }
-    return map;
-  }, [tasks, active, selectedIso]);
+  const { data: allTasks = [], isLoading } = useTasksForDate(selectedIso);
 
-  const totalTasks = Object.values(tasksByProject).flat().length;
-  const doneTasks = Object.values(tasksByProject).flat().filter((t) => t.status === "done").length;
+  // Apply filters
+  const filtered = useMemo(() => {
+    let tasks = allTasks;
+    if (projectFilter) tasks = tasks.filter((t) => t.project_id === projectFilter);
+    if (sortByPriority) tasks = [...tasks].sort((a, b) => a.priority - b.priority);
+    return tasks;
+  }, [allTasks, projectFilter, sortByPriority]);
 
-  if (active.length === 0 && !isLoading) {
-    return (
-      <div style={{
-        height: "100%", display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", gap: 12, padding: 32,
-        background: colors.bg,
-      }}>
-        <div style={{ fontSize: 56 }}>🚀</div>
-        <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em" }}>Bem-vindo ao Pedro's HQ</div>
-        <div style={{ color: colors.textSecondary, fontSize: 14, textAlign: "center", maxWidth: 320 }}>
-          Crie seu primeiro projeto na barra lateral para começar.
-        </div>
-      </div>
+  const columns = useMemo(() => {
+    return COLUMNS.map((col) => ({
+      ...col,
+      tasks: filtered.filter((t) => t.status === col.status),
+    }));
+  }, [filtered]);
+
+  const totalCount = allTasks.length;
+  const doneCount = allTasks.filter((t) => t.status === "done").length;
+
+  function handleMove(id: string, status: Task["status"]) {
+    const task = allTasks.find((t) => t.id === id);
+    if (!task) return;
+    setStatus.mutate(
+      { id, status, projectId: task.project_id },
+      { onError: () => toast.error("Erro ao mover tarefa") }
     );
   }
 
+  const activeProjects = projects.filter((p) => !p.archived);
+
   return (
     <div style={{
-      display: "flex",
-      flexDirection: "column",
-      height: "100vh",
-      background: colors.bg,
-      overflow: "hidden",
+      display: "flex", flexDirection: "column",
+      height: "100vh", background: colors.bg, overflow: "hidden",
     }}>
-      {/* ── Top bar: header + date navigator ── */}
+      {/* ── Header ── */}
       <div style={{
-        padding: "20px 24px 16px",
-        flexShrink: 0,
+        padding: "18px 20px 14px",
         borderBottom: `1px solid ${colors.separator}`,
+        flexShrink: 0,
       }}>
-        {/* Header row */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
+        {/* Title row */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
           <div>
-            <h1 style={{
-              fontSize: 24,
-              fontWeight: 700,
-              letterSpacing: "-0.03em",
-              marginBottom: 3,
-            }}>Meu dia</h1>
-            <p style={{ color: colors.textSecondary, fontSize: 13 }}>
-              {totalTasks === 0
-                ? "Nenhuma tarefa para este dia"
-                : `${doneTasks} de ${totalTasks} ${totalTasks === 1 ? "tarefa concluída" : "tarefas concluídas"}`}
+            <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 2 }}>Meu dia</h1>
+            <p style={{ color: colors.textSecondary, fontSize: 12 }}>
+              {isLoading ? "Carregando..." :
+                totalCount === 0 ? "Nenhuma tarefa neste dia" :
+                `${doneCount} de ${totalCount} ${totalCount === 1 ? "tarefa" : "tarefas"} concluída${doneCount !== 1 ? "s" : ""}`
+              }
             </p>
           </div>
-          {!isToday && (
-            <button
-              onClick={() => setSelectedDate(new Date())}
-              style={{
-                background: colors.accentBg,
-                color: colors.accent,
+          {/* Date navigator */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {!isToday && (
+              <button onClick={() => setSelectedDate(new Date())} style={{
+                background: colors.accentBg, color: colors.accent,
                 border: `1px solid ${colors.accentBorder}`,
-                padding: "6px 14px",
-                borderRadius: radius.full,
-                cursor: "pointer",
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-            >
-              Hoje
+                padding: "4px 10px", borderRadius: radius.full,
+                cursor: "pointer", fontSize: 12, fontWeight: 600,
+              }}>Hoje</button>
+            )}
+            <button onClick={() => setSelectedDate(addDays(selectedDate, -1))} style={arrowBtn}>
+              <ChevronLeft size={14} />
             </button>
-          )}
+            <span style={{
+              fontSize: 13, fontWeight: 600,
+              color: isToday ? colors.accent : colors.text,
+              textTransform: "capitalize", letterSpacing: "-0.01em",
+              minWidth: 240, textAlign: "center",
+            }}>
+              {formatDateLabel(selectedDate)}
+              {isToday && <span style={{ fontSize: 9, color: colors.accent, marginLeft: 6, opacity: 0.7, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.07em" }}>· Hoje</span>}
+            </span>
+            <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} style={arrowBtn}>
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
 
-        {/* Date navigator */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={() => setSelectedDate(addDays(selectedDate, -1))} style={arrowBtnStyle}>
-            <ChevronLeft size={15} />
-          </button>
-          <span style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: isToday ? colors.accent : colors.text,
-            textTransform: "capitalize",
-            letterSpacing: "-0.01em",
-          }}>
-            {formatDateLabel(selectedDate)}
-            {isToday && (
-              <span style={{
-                fontSize: 9,
-                color: colors.accent,
-                marginLeft: 8,
-                opacity: 0.7,
-                fontWeight: 500,
-                textTransform: "uppercase",
-                letterSpacing: "0.07em",
-              }}>· Hoje</span>
-            )}
-          </span>
-          <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} style={arrowBtnStyle}>
-            <ChevronRight size={15} />
-          </button>
+        {/* Filter bar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          {/* Project pills */}
+          <button
+            onClick={() => setProjectFilter(null)}
+            style={filterPill(projectFilter === null)}
+          >Todos</button>
+          {activeProjects.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setProjectFilter(projectFilter === p.id ? null : p.id)}
+              style={filterPill(projectFilter === p.id)}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: 3, background: p.color, flexShrink: 0 }} />
+              {p.name}
+            </button>
+          ))}
+
+          {/* Sort toggle */}
+          <div style={{ marginLeft: "auto" }}>
+            <button
+              onClick={() => setSortByPriority((v) => !v)}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "4px 10px",
+                background: sortByPriority ? colors.accentBg : "transparent",
+                border: sortByPriority ? `1px solid ${colors.accentBorder}` : `1px solid ${colors.separator}`,
+                borderRadius: radius.sm,
+                color: sortByPriority ? colors.accent : colors.textSecondary,
+                cursor: "pointer", fontSize: 12, fontWeight: sortByPriority ? 600 : 400,
+              }}
+            >
+              ↑ Prioridade
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ── Body: tasks (left) + calendar (right) ── */}
-      <div style={{
-        flex: 1,
-        display: "flex",
-        gap: 0,
-        overflow: "hidden",
-      }}>
-        {/* Tasks column */}
+      {/* ── Body: Kanban + Calendar ── */}
+      <div style={{ flex: 1, display: "flex", gap: 0, overflow: "hidden" }}>
+
+        {/* Kanban columns */}
         <div style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "20px 20px 32px",
+          flex: 1, display: "flex", gap: 10,
+          padding: "14px 14px 14px",
+          overflow: "hidden",
           minWidth: 0,
         }}>
           {isLoading ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-              {[1, 2, 3].map((i) => (
-                <div key={i} style={{
-                  height: 120,
-                  background: colors.surface,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: radius.lg,
-                  opacity: 0.4,
-                }} />
-              ))}
-            </div>
+            Array.from({ length: 3 }, (_, i) => (
+              <div key={i} style={{
+                flex: 1, background: colors.surface, borderRadius: radius.lg,
+                border: `1px solid ${colors.border}`, opacity: 0.4,
+              }} />
+            ))
           ) : (
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-              gap: 12,
-              alignItems: "start",
-            }}>
-              {active.map((project) => {
-                const ptasks = tasksByProject[project.id] ?? [];
-                const doneCt = ptasks.filter((t) => t.status === "done").length;
-                const pct = ptasks.length > 0 ? Math.round((doneCt / ptasks.length) * 100) : 0;
-                const allDone = ptasks.length > 0 && doneCt === ptasks.length;
-                const isAdding = quickAddId === project.id;
-
-                return (
-                  <div
-                    key={project.id}
-                    style={{
-                      background: "rgba(28,28,30,0.85)",
-                      backdropFilter: "blur(20px)",
-                      WebkitBackdropFilter: "blur(20px)",
-                      border: "1px solid rgba(255,255,255,0.07)",
-                      borderRadius: radius.lg,
-                      overflow: "hidden",
-                      boxShadow: "0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06)",
-                    }}
-                  >
-                    {/* Card header */}
-                    <div style={{
-                      padding: "11px 13px",
-                      borderBottom: "1px solid rgba(84,84,88,0.28)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}>
-                      <span style={{
-                        width: 9, height: 9, borderRadius: 5,
-                        background: project.color, flexShrink: 0,
-                        boxShadow: `0 0 8px ${project.color}80`,
-                      }} />
-                      <span style={{
-                        flex: 1, fontSize: 13, fontWeight: 600,
-                        letterSpacing: "-0.01em",
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      }}>
-                        {project.name}
-                      </span>
-                      <span style={{
-                        fontSize: 10,
-                        padding: "2px 7px",
-                        borderRadius: radius.full,
-                        background: allDone ? "rgba(48,209,88,0.15)" : "rgba(84,84,88,0.3)",
-                        color: allDone ? colors.success : colors.textSecondary,
-                        fontVariantNumeric: "tabular-nums",
-                        fontWeight: 500,
-                      }}>
-                        {doneCt}/{ptasks.length}
-                      </span>
-                      <button
-                        onClick={() => setQuickAddId(isAdding ? null : project.id)}
-                        style={{
-                          background: "transparent", border: "none",
-                          color: colors.textMuted, cursor: "pointer",
-                          padding: 3, borderRadius: 5,
-                          display: "flex", alignItems: "center",
-                        }}
-                      >
-                        <Plus size={13} />
-                      </button>
-                    </div>
-
-                    {/* Progress bar */}
-                    {ptasks.length > 0 && (
-                      <div style={{ height: 2, background: "rgba(84,84,88,0.22)" }}>
-                        <div style={{
-                          height: "100%",
-                          background: pct === 100 ? colors.success : project.color,
-                          width: `${pct}%`,
-                          transition: `width 0.5s ${spring.default}`,
-                          boxShadow: pct === 100 ? `0 0 6px ${colors.success}` : `0 0 6px ${project.color}60`,
-                        }} />
-                      </div>
-                    )}
-
-                    {/* Tasks */}
-                    <div style={{ padding: "4px 0", maxHeight: 260, overflowY: "auto" }}>
-                      {ptasks.length === 0 && !isAdding && (
-                        <div style={{ padding: 14, color: colors.textMuted, fontSize: 12, fontStyle: "italic" }}>
-                          Nenhuma tarefa para este dia
-                        </div>
-                      )}
-                      {ptasks.map((task) => (
-                        <TaskRowSimple
-                          key={task.id}
-                          task={task}
-                          onToggle={() => cycleStatus.mutate({ id: task.id, currentStatus: task.status })}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Quick add */}
-                    {isAdding && (
-                      <QuickAdd
-                        projectId={project.id}
-                        dueDate={selectedIso}
-                        onDone={() => setQuickAddId(null)}
-                        onCreate={async (title) => {
-                          await createTask.mutateAsync({
-                            title, project_id: project.id,
-                            due_date: selectedIso, status: "todo", priority: 2,
-                          });
-                          toast.success("Tarefa criada");
-                          setQuickAddId(null);
-                        }}
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            columns.map((col) => (
+              <KanbanColumn key={col.status} config={col} tasks={col.tasks} onMove={handleMove} />
+            ))
           )}
         </div>
 
-        {/* Calendar column */}
+        {/* Calendar panel */}
         <div style={{
-          width: 340,
-          flexShrink: 0,
-          padding: "16px 16px 16px 0",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
+          width: 320, flexShrink: 0,
+          padding: "14px 14px 14px 0",
+          display: "flex", flexDirection: "column",
         }}>
           <DayCalendar isoDate={selectedIso} isToday={isToday} />
         </div>
@@ -318,107 +447,24 @@ export function HomeView() {
   );
 }
 
-// ── TaskRowSimple ─────────────────────────────────────────────────────────────
-
-function TaskRowSimple({ task, onToggle }: { task: Task; onToggle: () => void }) {
-  const done = task.status === "done";
-  return (
-    <div
-      style={{
-        display: "flex", alignItems: "flex-start", gap: 10,
-        padding: "8px 13px",
-      }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-    >
-      <button
-        onClick={onToggle}
-        style={{
-          width: 18, height: 18, borderRadius: 9,
-          flexShrink: 0, marginTop: 1,
-          border: `1.5px solid ${done ? colors.success : "rgba(84,84,88,0.65)"}`,
-          background: done ? colors.success : "transparent",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer",
-          transition: `all 0.25s ${spring.bounce}`,
-          boxShadow: done ? `0 0 8px ${colors.success}60` : "none",
-        }}
-      >
-        {done && <Check size={10} color="#000" strokeWidth={3} />}
-      </button>
-      <span style={{
-        flex: 1, fontSize: 13, lineHeight: 1.45,
-        color: done ? colors.textMuted : colors.text,
-        textDecoration: done ? "line-through" : "none",
-      }}>
-        {task.title}
-      </span>
-      {task.priority === 1 && (
-        <span style={{
-          fontSize: 9, color: colors.p1, flexShrink: 0,
-          marginTop: 2, fontWeight: 600, letterSpacing: "0.04em",
-        }}>P1</span>
-      )}
-    </div>
-  );
-}
-
-// ── QuickAdd ──────────────────────────────────────────────────────────────────
-
-function QuickAdd({
-  projectId: _pid, dueDate: _due, onDone, onCreate,
-}: {
-  projectId: string; dueDate: string;
-  onDone: () => void; onCreate: (title: string) => Promise<void>;
-}) {
-  const [title, setTitle] = useState("");
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) return;
-    try { await onCreate(title.trim()); setTitle(""); }
-    catch { toast.error("Erro ao criar tarefa"); }
-  }
-
-  return (
-    <form onSubmit={submit} style={{ padding: "7px 10px 10px", borderTop: `1px solid rgba(84,84,88,0.28)` }}>
-      <div style={{ display: "flex", gap: 6 }}>
-        <input
-          autoFocus value={title} onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Escape") onDone(); }}
-          placeholder="Nova tarefa..."
-          style={{
-            flex: 1, background: colors.surfaceRaised,
-            border: `1px solid ${colors.separator}`,
-            color: colors.text, padding: "6px 9px",
-            borderRadius: radius.sm, fontSize: 12,
-          }}
-        />
-        <button type="submit" style={{
-          background: colors.accent, color: "#000",
-          border: "none", padding: "6px 11px",
-          borderRadius: radius.sm, cursor: "pointer",
-          fontSize: 14, fontWeight: 700,
-        }}>+</button>
-        <button type="button" onClick={onDone} style={{
-          background: "transparent", border: `1px solid ${colors.separator}`,
-          color: colors.textSecondary, padding: "6px 9px",
-          borderRadius: radius.sm, cursor: "pointer", fontSize: 12,
-        }}>✕</button>
-      </div>
-    </form>
-  );
-}
-
 // ── styles ────────────────────────────────────────────────────────────────────
 
-const arrowBtnStyle: React.CSSProperties = {
+const arrowBtn: React.CSSProperties = {
   background: colors.surfaceRaised,
   border: `1px solid ${colors.border}`,
   color: colors.text,
-  padding: "5px 9px",
-  borderRadius: "8px",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
+  padding: "4px 8px", borderRadius: "7px",
+  cursor: "pointer", display: "flex", alignItems: "center",
 };
+
+const filterPill = (active: boolean): React.CSSProperties => ({
+  display: "inline-flex", alignItems: "center", gap: 5,
+  padding: "3px 10px",
+  background: active ? colors.accentBg : "transparent",
+  border: active ? `1px solid ${colors.accentBorder}` : `1px solid ${colors.separator}`,
+  borderRadius: radius.full,
+  color: active ? colors.accent : colors.textSecondary,
+  cursor: "pointer", fontSize: 12,
+  fontWeight: active ? 600 : 400,
+  transition: `all 0.15s ${spring.gentle}`,
+});
