@@ -10,9 +10,8 @@ import {
   useCreateProject, useArchiveProject, useUnarchiveProject, useTasksByProject,
 } from "@/lib/queries";
 import { PROJECT_COLORS } from "@/lib/types";
-import { useSearch } from "@/routes/__root";
+import { useSearch, useQuickAdd } from "@/routes/__root";
 import { SearchModal } from "@/components/workspace/SearchModal";
-import { QuickAddModal } from "@/components/workspace/QuickAddModal";
 import { colors, spring, radius } from "@/lib/tokens";
 import { useTheme } from "@/hooks/use-theme";
 
@@ -27,6 +26,7 @@ export function Sidebar() {
   const archiveProject = useArchiveProject();
   const unarchiveProject = useUnarchiveProject();
   const { open: searchOpen, openSearch, closeSearch } = useSearch();
+  const { openQuickAdd } = useQuickAdd();
   const { theme, toggle } = useTheme();
 
   const [collapsed, setCollapsed] = useState(() => {
@@ -38,8 +38,6 @@ export function Sidebar() {
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState(PROJECT_COLORS[0]);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
-
   const routerState = useRouterState();
   const currentPath = routerState.location.pathname;
 
@@ -269,7 +267,7 @@ export function Sidebar() {
         }}>
           {/* Quick Add */}
           <button
-            onClick={() => setQuickAddOpen(true)}
+            onClick={openQuickAdd}
             title="Adicionar tarefa ou link"
             style={{
               display: "flex",
@@ -316,7 +314,6 @@ export function Sidebar() {
       </aside>
 
       {searchOpen && <SearchModal onClose={closeSearch} />}
-      {quickAddOpen && <QuickAddModal onClose={() => setQuickAddOpen(false)} />}
     </>
   );
 }

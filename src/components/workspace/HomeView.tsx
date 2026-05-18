@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { useProjects, useTasksForDate, useSetTaskStatus } from "@/lib/queries";
 import type { Task } from "@/lib/types";
 import { colors, spring, radius } from "@/lib/tokens";
 import { DayCalendar } from "@/components/workspace/DayCalendar";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 // ── date helpers ─────────────────────────────────────────────────────────────
 
@@ -286,6 +287,9 @@ export function HomeView() {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [projectFilter, setProjectFilter] = useState<string | null>(null);
   const [sortByPriority, setSortByPriority] = useState(false);
+  const [mobileColumn, setMobileColumn] = useState<Task["status"]>("todo");
+  const [showCalendar, setShowCalendar] = useState(false);
+  const isMobile = useIsMobile();
   const setStatus = useSetTaskStatus();
 
   const selectedIso = toIso(selectedDate);
@@ -325,46 +329,59 @@ export function HomeView() {
   return (
     <div style={{
       display: "flex", flexDirection: "column",
-      height: "100vh", background: colors.bg, overflow: "hidden",
+      height: "100dvh", background: colors.bg, overflow: "hidden",
     }}>
       {/* ── Header ── */}
       <div style={{
-        padding: "18px 20px 14px",
+        padding: isMobile ? "12px 16px 10px" : "18px 20px 14px",
         borderBottom: `1px solid ${colors.separator}`,
         flexShrink: 0,
+        paddingTop: isMobile ? "calc(12px + env(safe-area-inset-top, 0px))" : "18px",
       }}>
         {/* Title row */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 2 }}>Meu dia</h1>
-            <p style={{ color: colors.textSecondary, fontSize: 12 }}>
+        <div style={{
+          display: "flex", alignItems: "center",
+          justifyContent: "space-between", marginBottom: 10,
+          gap: 8,
+        }}>
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{
+              fontSize: isMobile ? 20 : 22,
+              fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 1,
+            }}>Meu dia</h1>
+            <p style={{ color: colors.textSecondary, fontSize: 11, margin: 0 }}>
               {isLoading ? "Carregando..." :
                 totalCount === 0 ? "Nenhuma tarefa neste dia" :
-                `${doneCount} de ${totalCount} ${totalCount === 1 ? "tarefa" : "tarefas"} concluída${doneCount !== 1 ? "s" : ""}`
+                `${doneCount}/${totalCount} concluída${doneCount !== 1 ? "s" : ""}`
               }
             </p>
           </div>
+
           {/* Date navigator */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
             {!isToday && (
               <button onClick={() => setSelectedDate(new Date())} style={{
                 background: colors.accentBg, color: colors.accent,
                 border: `1px solid ${colors.accentBorder}`,
                 padding: "4px 10px", borderRadius: radius.full,
                 cursor: "pointer", fontSize: 12, fontWeight: 600,
+                minHeight: 32,
               }}>Hoje</button>
             )}
             <button onClick={() => setSelectedDate(addDays(selectedDate, -1))} style={arrowBtn}>
               <ChevronLeft size={14} />
             </button>
             <span style={{
-              fontSize: 13, fontWeight: 600,
+              fontSize: isMobile ? 12 : 13, fontWeight: 600,
               color: isToday ? colors.accent : colors.text,
               textTransform: "capitalize", letterSpacing: "-0.01em",
-              minWidth: 240, textAlign: "center",
+              minWidth: isMobile ? 100 : 240, textAlign: "center",
             }}>
-              {formatDateLabel(selectedDate)}
-              {isToday && <span style={{ fontSize: 9, color: colors.accent, marginLeft: 6, opacity: 0.7, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.07em" }}>· Hoje</span>}
+              {isMobile
+                ? selectedDate.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short", timeZone: "America/Sao_Paulo" })
+                : formatDateLabel(selectedDate)
+              }
+              {isToday && <span style={{ fontSize: 9, color: colors.accent, marginLeft: 4, opacity: 0.7, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.07em" }}>· Hoje</span>}
             </span>
             <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} style={arrowBtn}>
               <ChevronRight size={14} />
@@ -372,13 +389,15 @@ export function HomeView() {
           </div>
         </div>
 
-        {/* Filter bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          {/* Project pills */}
-          <button
-            onClick={() => setProjectFilter(null)}
-            style={filterPill(projectFilter === null)}
-          >Todos</button>
+        {/* Filter bar — horizontal scroll on mobile */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6,
+          overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          paddingBottom: 2,
+        }}>
+          <button onClick={() => setProjectFilter(null)} style={filterPill(projectFilter === null)}>Todos</button>
           {activeProjects.map((p) => (
             <button
               key={p.id}
@@ -390,8 +409,8 @@ export function HomeView() {
             </button>
           ))}
 
-          {/* Sort toggle */}
-          <div style={{ marginLeft: "auto" }}>
+          {/* Priority sort — always at the right, flex-shrink 0 */}
+          <div style={{ marginLeft: "auto", flexShrink: 0 }}>
             <button
               onClick={() => setSortByPriority((v) => !v)}
               style={{
@@ -402,47 +421,141 @@ export function HomeView() {
                 borderRadius: radius.sm,
                 color: sortByPriority ? colors.accent : colors.textSecondary,
                 cursor: "pointer", fontSize: 12, fontWeight: sortByPriority ? 600 : 400,
+                whiteSpace: "nowrap",
               }}
             >
               ↑ Prioridade
             </button>
           </div>
-        </div>
-      </div>
 
-      {/* ── Body: Kanban + Calendar ── */}
-      <div style={{ flex: 1, display: "flex", gap: 0, overflow: "hidden" }}>
-
-        {/* Kanban columns */}
-        <div style={{
-          flex: 1, display: "flex", gap: 10,
-          padding: "14px 14px 14px",
-          overflow: "hidden",
-          minWidth: 0,
-        }}>
-          {isLoading ? (
-            Array.from({ length: 3 }, (_, i) => (
-              <div key={i} style={{
-                flex: 1, background: colors.surface, borderRadius: radius.lg,
-                border: `1px solid ${colors.border}`, opacity: 0.4,
-              }} />
-            ))
-          ) : (
-            columns.map((col) => (
-              <KanbanColumn key={col.status} config={col} tasks={col.tasks} onMove={handleMove} />
-            ))
+          {/* Calendar toggle — mobile only */}
+          {isMobile && (
+            <button
+              onClick={() => setShowCalendar((v) => !v)}
+              style={{
+                display: "flex", alignItems: "center", gap: 4,
+                padding: "4px 10px",
+                background: showCalendar ? colors.accentBg : "transparent",
+                border: showCalendar ? `1px solid ${colors.accentBorder}` : `1px solid ${colors.separator}`,
+                borderRadius: radius.sm,
+                color: showCalendar ? colors.accent : colors.textSecondary,
+                cursor: "pointer", fontSize: 12, fontWeight: showCalendar ? 600 : 400,
+                flexShrink: 0,
+              }}
+            >
+              <CalendarDays size={12} />
+              Agenda
+            </button>
           )}
         </div>
 
-        {/* Calendar panel */}
-        <div style={{
-          width: 320, flexShrink: 0,
-          padding: "14px 14px 14px 0",
-          display: "flex", flexDirection: "column",
-        }}>
-          <DayCalendar isoDate={selectedIso} isToday={isToday} />
-        </div>
+        {/* Mobile — segmented column switcher */}
+        {isMobile && !showCalendar && (
+          <div style={{
+            display: "flex", gap: 0, marginTop: 10,
+            background: colors.surface,
+            borderRadius: radius.md,
+            padding: 3,
+            border: `1px solid ${colors.separator}`,
+          }}>
+            {COLUMNS.map((col) => {
+              const active = mobileColumn === col.status;
+              const count = columns.find((c) => c.status === col.status)?.tasks.length ?? 0;
+              return (
+                <button
+                  key={col.status}
+                  onClick={() => setMobileColumn(col.status)}
+                  style={{
+                    flex: 1,
+                    padding: "7px 4px",
+                    borderRadius: radius.sm,
+                    border: "none",
+                    background: active ? col.accentBg : "transparent",
+                    color: active ? col.accent : colors.textMuted,
+                    cursor: "pointer",
+                    fontSize: 12, fontWeight: active ? 700 : 400,
+                    transition: `all 0.15s ${spring.gentle}`,
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                  }}
+                >
+                  {col.label}
+                  <span style={{
+                    fontSize: 10, fontWeight: 600,
+                    background: active ? col.accent + "25" : "rgba(84,84,88,0.25)",
+                    color: active ? col.accent : colors.textMuted,
+                    borderRadius: "99px", padding: "0px 5px",
+                    lineHeight: "16px",
+                  }}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {/* ── Body ── */}
+      {isMobile ? (
+        /* ── MOBILE: single column or calendar ── */
+        showCalendar ? (
+          <div style={{ flex: 1, padding: "12px 12px 80px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <DayCalendar isoDate={selectedIso} isToday={isToday} />
+          </div>
+        ) : (
+          <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "12px 12px 80px" }}>
+            {isLoading ? (
+              <div style={{ background: colors.surface, borderRadius: radius.lg, height: 200, opacity: 0.4 }} />
+            ) : (
+              (() => {
+                const col = columns.find((c) => c.status === mobileColumn);
+                if (!col) return null;
+                return (
+                  <>
+                    {col.tasks.length === 0 && (
+                      <div style={{ textAlign: "center", padding: "40px 8px", color: colors.textMuted, fontSize: 13 }}>
+                        {col.status === "done" ? "Nenhuma tarefa concluída" : "Vazio"}
+                      </div>
+                    )}
+                    {col.tasks.map((t) => (
+                      <KanbanCard key={t.id} task={t} onMove={(status) => handleMove(t.id, status)} />
+                    ))}
+                  </>
+                );
+              })()
+            )}
+          </div>
+        )
+      ) : (
+        /* ── DESKTOP: 3-column kanban + calendar panel ── */
+        <div style={{ flex: 1, display: "flex", gap: 0, overflow: "hidden" }}>
+          <div style={{
+            flex: 1, display: "flex", gap: 10,
+            padding: "14px 14px 14px",
+            overflow: "hidden",
+            minWidth: 0,
+          }}>
+            {isLoading ? (
+              Array.from({ length: 3 }, (_, i) => (
+                <div key={i} style={{
+                  flex: 1, background: colors.surface, borderRadius: radius.lg,
+                  border: `1px solid ${colors.border}`, opacity: 0.4,
+                }} />
+              ))
+            ) : (
+              columns.map((col) => (
+                <KanbanColumn key={col.status} config={col} tasks={col.tasks} onMove={handleMove} />
+              ))
+            )}
+          </div>
+
+          <div style={{
+            width: 320, flexShrink: 0,
+            padding: "14px 14px 14px 0",
+            display: "flex", flexDirection: "column",
+          }}>
+            <DayCalendar isoDate={selectedIso} isToday={isToday} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

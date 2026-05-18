@@ -9,7 +9,10 @@ import appCss from "../styles.css?url";
 import { Toaster } from "sonner";
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { MobileNav } from "@/components/layout/MobileNav";
+import { QuickAddModal } from "@/components/workspace/QuickAddModal";
 import { ThemeProvider, useTheme } from "@/hooks/use-theme";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 // ─── Search context ───────────────────────────────────────────────────────────
 
@@ -36,6 +39,22 @@ function SearchProvider({ children }: { children: ReactNode }) {
     <SearchContext.Provider value={{ open, openSearch: () => setOpen(true), closeSearch: () => setOpen(false) }}>
       {children}
     </SearchContext.Provider>
+  );
+}
+
+// ─── QuickAdd context (shared between Sidebar + MobileNav) ───────────────────
+
+type QuickAddCtx = { open: boolean; openQuickAdd: () => void; closeQuickAdd: () => void };
+const QuickAddContext = createContext<QuickAddCtx>({ open: false, openQuickAdd: () => {}, closeQuickAdd: () => {} });
+export const useQuickAdd = () => useContext(QuickAddContext);
+
+function QuickAddProvider({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <QuickAddContext.Provider value={{ open, openQuickAdd: () => setOpen(true), closeQuickAdd: () => setOpen(false) }}>
+      {children}
+      {open && <QuickAddModal onClose={() => setOpen(false)} />}
+    </QuickAddContext.Provider>
   );
 }
 
@@ -88,7 +107,9 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <SearchProvider>
-          <AppShell />
+          <QuickAddProvider>
+            <AppShell />
+          </QuickAddProvider>
         </SearchProvider>
       </ThemeProvider>
     </QueryClientProvider>
@@ -97,6 +118,7 @@ function RootComponent() {
 
 function AppShell() {
   const { theme } = useTheme();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -106,12 +128,34 @@ function AppShell() {
 
   return (
     <>
-      <div style={{ display: "flex", height: "100vh", background: "var(--hq-bg)", color: "var(--hq-text)", overflow: "hidden" }}>
-        <Sidebar />
-        <main style={{ flex: 1, height: "100vh", overflowY: "auto", position: "relative" }}>
+      <div style={{
+        display: "flex",
+        height: "100dvh",
+        background: "var(--hq-bg)",
+        color: "var(--hq-text)",
+        overflow: "hidden",
+      }}>
+        {/* Sidebar — desktop only */}
+        {!isMobile && <Sidebar />}
+
+        {/* Main content */}
+        <main style={{
+          flex: 1,
+          height: "100dvh",
+          overflowY: "auto",
+          overflowX: "hidden",
+          position: "relative",
+          /* Room for mobile bottom nav */
+          paddingBottom: isMobile ? "env(safe-area-inset-bottom, 0px)" : 0,
+          WebkitOverflowScrolling: "touch",
+        }}>
           <Outlet />
         </main>
       </div>
+
+      {/* Mobile bottom nav */}
+      {isMobile && <MobileNav />}
+
       <Toaster theme={theme === "light" ? "light" : "dark"} position="bottom-right" />
     </>
   );
