@@ -26,7 +26,7 @@ export function QuickAddModal({ onClose }: Props) {
 
   // Task form
   const [taskTitle, setTaskTitle] = useState("");
-  const [taskProject, setTaskProject] = useState(projects[0]?.id ?? "");
+  const [taskProject, setTaskProject] = useState("");
   const [taskDate, setTaskDate] = useState(todayIso());
   const [taskPriority, setTaskPriority] = useState<1 | 2 | 3>(2);
   const [taskDesc, setTaskDesc] = useState("");
@@ -36,9 +36,11 @@ export function QuickAddModal({ onClose }: Props) {
   const [bmTitle, setBmTitle] = useState("");
   const [bmTag, setBmTag] = useState("");
 
-  // Set default project when projects load
+  // Set default project when projects load — prefer "Blis", fallback to first
   useEffect(() => {
-    if (!taskProject && projects.length > 0) setTaskProject(projects[0].id);
+    if (taskProject || projects.length === 0) return;
+    const blis = projects.find((p) => p.name.toLowerCase().includes("blis"));
+    setTaskProject((blis ?? projects[0]).id);
   }, [projects, taskProject]);
 
   // Close on Escape
@@ -100,12 +102,13 @@ export function QuickAddModal({ onClose }: Props) {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: 440,
-          background: "rgba(28,28,30,0.96)",
+          maxWidth: "calc(100vw - 32px)",
+          background: colors.modalBg,
           backdropFilter: "blur(30px)",
           WebkitBackdropFilter: "blur(30px)",
-          border: "1px solid rgba(255,255,255,0.09)",
+          border: `1px solid ${colors.cardBorder}`,
           borderRadius: radius.xl,
-          boxShadow: "0 32px 80px rgba(0,0,0,0.7)",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.5)",
           overflow: "hidden",
           animation: "modalIn 0.2s cubic-bezier(0.34,1.56,0.64,1)",
         }}
@@ -167,19 +170,45 @@ export function QuickAddModal({ onClose }: Props) {
                 />
               </div>
 
-              {/* Project */}
+              {/* Project pills */}
               <div>
                 <label style={labelStyle}>Projeto *</label>
-                <select
-                  value={taskProject}
-                  onChange={(e) => setTaskProject(e.target.value)}
-                  required
-                  style={{ ...inputStyle, cursor: "pointer" }}
-                >
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
+                <div style={{
+                  display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4,
+                }}>
+                  {projects.filter((p) => !p.archived).map((p) => {
+                    const active = taskProject === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setTaskProject(p.id)}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 6,
+                          padding: "5px 11px",
+                          background: active ? `${p.color}20` : colors.inlayBg,
+                          border: active
+                            ? `1.5px solid ${p.color}70`
+                            : `1px solid ${colors.border}`,
+                          borderRadius: radius.full,
+                          color: active ? p.color : colors.textSecondary,
+                          cursor: "pointer",
+                          fontSize: 12,
+                          fontWeight: active ? 700 : 400,
+                          transition: `all 0.15s ${spring.gentle}`,
+                        }}
+                      >
+                        <span style={{
+                          width: 7, height: 7, borderRadius: "50%",
+                          background: p.color,
+                          flexShrink: 0,
+                          boxShadow: active ? `0 0 5px ${p.color}80` : "none",
+                        }} />
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Date + Priority row */}
@@ -310,8 +339,8 @@ const labelStyle: React.CSSProperties = {
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  background: colors.surfaceRaised,
-  border: `1px solid ${colors.separator}`,
+  background: colors.inlayBg,
+  border: `1px solid ${colors.border}`,
   color: colors.text,
   padding: "8px 10px",
   borderRadius: "8px",
