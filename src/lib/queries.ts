@@ -803,11 +803,14 @@ export { useProjects as useProjectsList };
 
 // ─── standalone notes (not project notes) ─────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
 export function useNotes() {
   return useQuery({
     queryKey: ["notes"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("notes")
         .select("*, project:projects(name, color)")
         .order("updated_at", { ascending: false });
@@ -821,7 +824,7 @@ export function useCreateNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: { title: string; body?: string; project_id?: string | null }) => {
-      const { data: result, error } = await supabase
+      const { data: result, error } = await db
         .from("notes")
         .insert({ title: data.title, body: data.body ?? "", project_id: data.project_id ?? null })
         .select()
@@ -837,7 +840,7 @@ export function useUpdateNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { title?: string; body?: string } }) => {
-      const { data: result, error } = await supabase
+      const { data: result, error } = await db
         .from("notes")
         .update({ ...data, updated_at: new Date().toISOString() })
         .eq("id", id)
@@ -854,7 +857,7 @@ export function useDeleteNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("notes").delete().eq("id", id);
+      const { error } = await db.from("notes").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["notes"] }); },
@@ -867,7 +870,7 @@ export function usePurchases() {
   return useQuery({
     queryKey: ["purchases"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("purchases")
         .select("*")
         .order("created_at", { ascending: false });
@@ -885,7 +888,7 @@ export function useCreatePurchase() {
       price_cents?: number; qty?: number;
       category?: string;
     }) => {
-      const { data: result, error } = await supabase
+      const { data: result, error } = await db
         .from("purchases")
         .insert({
           name: data.name,
@@ -908,7 +911,7 @@ export function useTogglePurchaseBought() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, bought }: { id: string; bought: boolean }) => {
-      const { error } = await supabase
+      const { error } = await db
         .from("purchases")
         .update({ bought: !bought, bought_at: !bought ? new Date().toISOString() : null })
         .eq("id", id);
@@ -922,7 +925,7 @@ export function useDeletePurchase() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("purchases").delete().eq("id", id);
+      const { error } = await db.from("purchases").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["purchases"] }); },
