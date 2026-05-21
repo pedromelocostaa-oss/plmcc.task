@@ -1,21 +1,46 @@
-import { useState, useEffect } from "react";
-import { X, CheckSquare, Link as LinkIcon } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, CheckSquare, Link as LinkIcon, FileText, ShoppingCart, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
-import { useProjects, useCreateTask, useCreateBookmark } from "@/lib/queries";
+import {
+  useProjects, useCreateTask, useCreateBookmark,
+  useCreateNote, useCreatePurchase,
+} from "@/lib/queries";
 import { colors, spring, radius } from "@/lib/tokens";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 interface Props { onClose: () => void; }
 
-type Tab = "task" | "bookmark";
+type Tab = "task" | "bookmark" | "note" | "purchase";
 
 const PRIORITIES = [
-  { value: 1, label: "P1", color: "#FF453A", bg: "rgba(255,69,58,0.14)", desc: "Urgente" },
-  { value: 2, label: "P2", color: "#FF9F0A", bg: "rgba(255,159,10,0.14)", desc: "Normal" },
-  { value: 3, label: "P3", color: "#0A84FF", bg: "rgba(10,132,255,0.14)", desc: "Baixa" },
+  { value: 1, label: "P1", color: "var(--hq-p1)", bg: "var(--hq-p1-bg)", desc: "Urgente" },
+  { value: 2, label: "P2", color: "var(--hq-p2)", bg: "var(--hq-p2-bg)", desc: "Normal" },
+  { value: 3, label: "P3", color: "var(--hq-p3)", bg: "var(--hq-p3-bg)", desc: "Baixa" },
+];
+
+const PURCHASE_CATEGORIES = [
+  { value: "pessoal",  label: "Pessoal",  emoji: "🏠" },
+  { value: "casa",     label: "Casa",     emoji: "🛋️" },
+  { value: "trabalho", label: "Trabalho", emoji: "💼" },
+  { value: "presente", label: "Presente", emoji: "🎁" },
+  { value: "viagem",   label: "Viagem",   emoji: "✈️" },
+  { value: "tech",     label: "Tech",     emoji: "💻" },
+];
+
+const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: "task",     label: "Tarefa",  icon: <CheckSquare size={13} /> },
+  { id: "bookmark", label: "Link",    icon: <LinkIcon size={13} /> },
+  { id: "note",     label: "Anotação", icon: <FileText size={13} /> },
+  { id: "purchase", label: "Compra",  icon: <ShoppingCart size={13} /> },
 ];
 
 function todayIso(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
+interface Subtask {
+  id: string;
+  title: string;
 }
 
 export function QuickAddModal({ onClose }: Props) {
@@ -23,6 +48,9 @@ export function QuickAddModal({ onClose }: Props) {
   const { data: projects = [] } = useProjects();
   const createTask = useCreateTask();
   const createBookmark = useCreateBookmark();
+  const createNote = useCreateNote();
+  const createPurchase = useCreatePurchase();
+  const isMobile = useIsMobile();
 
   // Task form
   const [taskTitle, setTaskTitle] = useState("");
@@ -30,25 +58,50 @@ export function QuickAddModal({ onClose }: Props) {
   const [taskDate, setTaskDate] = useState(todayIso());
   const [taskPriority, setTaskPriority] = useState<1 | 2 | 3>(2);
   const [taskDesc, setTaskDesc] = useState("");
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [subtaskInput, setSubtaskInput] = useState("");
 
   // Bookmark form
   const [bmUrl, setBmUrl] = useState("");
   const [bmTitle, setBmTitle] = useState("");
   const [bmTag, setBmTag] = useState("");
 
-  // Set default project when projects load — prefer "Blis", fallback to first
+  // Note form
+  const [noteTitle, setNoteTitle] = useState("");
+  const [noteProject, setNoteProject] = useState<string | null>(null);
+  const [noteBody, setNoteBody] = useState("");
+
+  // Purchase form
+  const [purchaseName, setPurchaseName] = useState("");
+  const [purchaseUrl, setPurchaseUrl] = useState("");
+  const [purchasePrice, setPurchasePrice] = useState("");
+  const [purchaseQty, setPurchaseQty] = useState(1);
+  const [purchaseCategory, setPurchaseCategory] = useState("pessoal");
+
+  const subtaskInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (taskProject || projects.length === 0) return;
     const blis = projects.find((p) => p.name.toLowerCase().includes("blis"));
     setTaskProject((blis ?? projects[0]).id);
   }, [projects, taskProject]);
 
-  // Close on Escape
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  function addSubtask() {
+    const t = subtaskInput.trim();
+    if (!t) return;
+    setSubtasks((s) => [...s, { id: crypto.randomUUID(), title: t }]);
+    setSubtaskInput("");
+  }
+
+  function removeSubtask(id: string) {
+    setSubtasks((s) => s.filter((st) => st.id !== id));
+  }
 
   async function submitTask(e: React.FormEvent) {
     e.preventDefault();
@@ -84,41 +137,116 @@ export function QuickAddModal({ onClose }: Props) {
     }
   }
 
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(0,0,0,0.55)",
+  async function submitNote(e: React.FormEvent) {
+    e.preventDefault();
+    if (!noteTitle.trim()) return;
+    try {
+      await createNote.mutateAsync({
+        title: noteTitle.trim(),
+        body: noteBody.trim(),
+        project_id: noteProject,
+      });
+      toast.success("Anotação criada!");
+      onClose();
+    } catch {
+      toast.error("Erro ao criar anotação");
+    }
+  }
+
+  async function submitPurchase(e: React.FormEvent) {
+    e.preventDefault();
+    if (!purchaseName.trim()) return;
+    try {
+      const priceCents = purchasePrice
+        ? Math.round(parseFloat(purchasePrice.replace(",", ".")) * 100)
+        : 0;
+      await createPurchase.mutateAsync({
+        name: purchaseName.trim(),
+        url: purchaseUrl.trim() || null,
+        price_cents: priceCents,
+        qty: purchaseQty,
+        category: purchaseCategory,
+      });
+      toast.success("Adicionado à lista de compras!");
+      onClose();
+    } catch {
+      toast.error("Erro ao adicionar compra");
+    }
+  }
+
+  const modalStyle: React.CSSProperties = isMobile
+    ? {
+        position: "fixed",
+        inset: 0,
+        display: "flex",
+        alignItems: "flex-end",
+        zIndex: 300,
+        background: "var(--hq-overlay)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+      }
+    : {
+        position: "fixed",
+        inset: 0,
+        background: "var(--hq-overlay)",
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",
         zIndex: 300,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 440,
-          maxWidth: "calc(100vw - 32px)",
-          background: colors.modalBg,
-          backdropFilter: "blur(30px)",
-          WebkitBackdropFilter: "blur(30px)",
-          border: `1px solid ${colors.cardBorder}`,
-          borderRadius: radius.xl,
-          boxShadow: "0 32px 80px rgba(0,0,0,0.5)",
-          overflow: "hidden",
-          animation: "modalIn 0.2s cubic-bezier(0.34,1.56,0.64,1)",
-        }}
-      >
-        <style>{`@keyframes modalIn { from { opacity:0; transform:scale(0.94) translateY(-10px); } to { opacity:1; transform:scale(1) translateY(0); } }`}</style>
+      };
+
+  const innerStyle: React.CSSProperties = isMobile
+    ? {
+        width: "100%",
+        maxHeight: "90dvh",
+        background: "var(--hq-modal-bg)",
+        backdropFilter: "blur(30px) saturate(1.8)",
+        WebkitBackdropFilter: "blur(30px) saturate(1.8)",
+        border: "1px solid var(--hq-card-border)",
+        borderRadius: "18px 18px 0 0",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }
+    : {
+        width: 460,
+        maxWidth: "calc(100vw - 32px)",
+        maxHeight: "90dvh",
+        background: "var(--hq-modal-bg)",
+        backdropFilter: "blur(30px) saturate(1.8)",
+        WebkitBackdropFilter: "blur(30px) saturate(1.8)",
+        border: "1px solid var(--hq-card-border)",
+        borderRadius: radius.xl,
+        boxShadow: "var(--hq-shadow-float)",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        animation: "modalIn 0.22s cubic-bezier(0.2,0.85,0.25,1)",
+      };
+
+  return (
+    <div onClick={onClose} style={modalStyle}>
+      <style>{`
+        @keyframes modalIn {
+          from { opacity:0; transform:scale(0.94) translateY(-10px); }
+          to { opacity:1; transform:scale(1) translateY(0); }
+        }
+      `}</style>
+      <div onClick={(e) => e.stopPropagation()} style={innerStyle}>
+
+        {/* iOS drag handle (mobile) */}
+        {isMobile && (
+          <div style={{ display: "flex", justifyContent: "center", paddingTop: 10, paddingBottom: 4 }}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--hq-separator-opaque)" }} />
+          </div>
+        )}
 
         {/* Header */}
         <div style={{
           display: "flex", alignItems: "center", gap: 10,
-          padding: "16px 18px 0",
+          padding: "14px 18px 0",
         }}>
           <h2 style={{ flex: 1, fontSize: 16, fontWeight: 700, letterSpacing: "-0.02em", margin: 0 }}>
             Adicionar
@@ -129,35 +257,35 @@ export function QuickAddModal({ onClose }: Props) {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 4, padding: "12px 18px 0" }}>
-          {(["task", "bookmark"] as Tab[]).map((t) => (
+        <div style={{ display: "flex", gap: 4, padding: "12px 18px 0", flexWrap: "wrap" }}>
+          {TABS.map(({ id, label, icon }) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={id}
+              onClick={() => setTab(id)}
               style={{
                 display: "flex", alignItems: "center", gap: 6,
-                padding: "6px 14px",
-                background: tab === t ? colors.accentBg : "transparent",
-                border: tab === t ? `1px solid ${colors.accentBorder}` : `1px solid transparent`,
+                padding: "5px 12px",
+                background: tab === id ? colors.accentSoft : "transparent",
+                border: tab === id ? `1px solid var(--hq-accent-border)` : `1px solid transparent`,
                 borderRadius: radius.sm,
-                color: tab === t ? colors.accent : colors.textSecondary,
+                color: tab === id ? colors.accent : colors.textSecondary,
                 cursor: "pointer",
-                fontSize: 13, fontWeight: tab === t ? 600 : 400,
+                fontSize: 12, fontWeight: tab === id ? 600 : 400,
                 transition: `all 0.15s ${spring.gentle}`,
               }}
             >
-              {t === "task" ? <CheckSquare size={13} /> : <LinkIcon size={13} />}
-              {t === "task" ? "Tarefa" : "Link útil"}
+              {icon}
+              {label}
             </button>
           ))}
         </div>
 
         {/* Body */}
-        <div style={{ padding: "16px 18px 20px" }}>
+        <div style={{ padding: "16px 18px 20px", overflowY: "auto" }}>
 
+          {/* ── TASK ── */}
           {tab === "task" && (
             <form onSubmit={submitTask} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {/* Title */}
               <div>
                 <label style={labelStyle}>Título *</label>
                 <input
@@ -170,12 +298,9 @@ export function QuickAddModal({ onClose }: Props) {
                 />
               </div>
 
-              {/* Project pills */}
               <div>
                 <label style={labelStyle}>Projeto *</label>
-                <div style={{
-                  display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4,
-                }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
                   {projects.filter((p) => !p.archived).map((p) => {
                     const active = taskProject === p.id;
                     return (
@@ -186,23 +311,22 @@ export function QuickAddModal({ onClose }: Props) {
                         style={{
                           display: "inline-flex", alignItems: "center", gap: 6,
                           padding: "5px 11px",
-                          background: active ? `${p.color}20` : colors.inlayBg,
+                          background: active ? `${p.color}20` : "var(--hq-inlay-bg)",
                           border: active
                             ? `1.5px solid ${p.color}70`
-                            : `1px solid ${colors.border}`,
+                            : `1px solid var(--hq-border)`,
                           borderRadius: radius.full,
                           color: active ? p.color : colors.textSecondary,
                           cursor: "pointer",
                           fontSize: 12,
                           fontWeight: active ? 700 : 400,
                           transition: `all 0.15s ${spring.gentle}`,
+                          boxShadow: active ? `0 0 6px ${p.color}40` : "none",
                         }}
                       >
                         <span style={{
                           width: 7, height: 7, borderRadius: "50%",
-                          background: p.color,
-                          flexShrink: 0,
-                          boxShadow: active ? `0 0 5px ${p.color}80` : "none",
+                          background: p.color, flexShrink: 0,
                         }} />
                         {p.name}
                       </button>
@@ -211,7 +335,6 @@ export function QuickAddModal({ onClose }: Props) {
                 </div>
               </div>
 
-              {/* Date + Priority row */}
               <div style={{ display: "flex", gap: 10 }}>
                 <div style={{ flex: 1 }}>
                   <label style={labelStyle}>Data de vencimento</label>
@@ -234,11 +357,12 @@ export function QuickAddModal({ onClose }: Props) {
                         style={{
                           padding: "5px 10px",
                           background: taskPriority === p.value ? p.bg : "transparent",
-                          border: taskPriority === p.value ? `1px solid ${p.color}50` : `1px solid ${colors.separator}`,
+                          border: taskPriority === p.value ? `1px solid ${p.color}50` : `1px solid var(--hq-border)`,
                           borderRadius: radius.sm,
                           color: taskPriority === p.value ? p.color : colors.textSecondary,
                           cursor: "pointer",
                           fontSize: 11, fontWeight: 700,
+                          fontFamily: '"SF Mono", ui-monospace, monospace',
                           transition: `all 0.15s ${spring.gentle}`,
                         }}
                       >
@@ -249,7 +373,6 @@ export function QuickAddModal({ onClose }: Props) {
                 </div>
               </div>
 
-              {/* Description */}
               <div>
                 <label style={labelStyle}>Descrição (opcional)</label>
                 <textarea
@@ -261,7 +384,56 @@ export function QuickAddModal({ onClose }: Props) {
                 />
               </div>
 
-              {/* Submit */}
+              {/* Subtasks */}
+              <div>
+                <label style={labelStyle}>
+                  Subtarefas (opcional)
+                  {subtasks.length > 0 && (
+                    <span style={{ fontFamily: '"SF Mono", ui-monospace, monospace', fontWeight: 600, marginLeft: 6 }}>
+                      {subtasks.length}
+                    </span>
+                  )}
+                </label>
+                {subtasks.map((st) => (
+                  <div key={st.id} style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "6px 0", borderBottom: `1px solid var(--hq-border)`,
+                  }}>
+                    <span style={{
+                      width: 16, height: 16, borderRadius: "50%",
+                      border: `1.5px solid var(--hq-border)`, flexShrink: 0,
+                    }} />
+                    <span style={{ flex: 1, fontSize: 13, color: colors.text }}>{st.title}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeSubtask(st.id)}
+                      style={{ background: "none", border: "none", color: colors.textMuted, cursor: "pointer", padding: 2 }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                  <span style={{
+                    width: 16, height: 16, borderRadius: "50%",
+                    border: `1.5px dashed var(--hq-border)`, flexShrink: 0,
+                  }} />
+                  <input
+                    ref={subtaskInputRef}
+                    value={subtaskInput}
+                    onChange={(e) => setSubtaskInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubtask(); } }}
+                    placeholder="+ Adicionar subtarefa (Enter)"
+                    style={{
+                      flex: 1, background: "transparent", border: "none",
+                      color: colors.textMuted, fontSize: 12,
+                      borderBottom: `1px dashed var(--hq-border)`,
+                      padding: "4px 0",
+                    }}
+                  />
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={!taskTitle.trim() || !taskProject || createTask.isPending}
@@ -272,9 +444,9 @@ export function QuickAddModal({ onClose }: Props) {
             </form>
           )}
 
+          {/* ── BOOKMARK ── */}
           {tab === "bookmark" && (
             <form onSubmit={submitBookmark} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {/* URL */}
               <div>
                 <label style={labelStyle}>URL *</label>
                 <input
@@ -288,7 +460,6 @@ export function QuickAddModal({ onClose }: Props) {
                 />
               </div>
 
-              {/* Title */}
               <div>
                 <label style={labelStyle}>Título (opcional)</label>
                 <input
@@ -299,7 +470,6 @@ export function QuickAddModal({ onClose }: Props) {
                 />
               </div>
 
-              {/* Tag */}
               <div>
                 <label style={labelStyle}>Tag / Categoria</label>
                 <input
@@ -319,6 +489,211 @@ export function QuickAddModal({ onClose }: Props) {
               </button>
             </form>
           )}
+
+          {/* ── NOTE ── */}
+          {tab === "note" && (
+            <form onSubmit={submitNote} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Título *</label>
+                <input
+                  autoFocus
+                  value={noteTitle}
+                  onChange={(e) => setNoteTitle(e.target.value)}
+                  placeholder="Título da anotação"
+                  required
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Projeto (opcional)</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => setNoteProject(null)}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      padding: "5px 11px",
+                      background: noteProject === null ? colors.accentSoft : "var(--hq-inlay-bg)",
+                      border: noteProject === null ? `1.5px solid var(--hq-accent-border)` : `1px solid var(--hq-border)`,
+                      borderRadius: radius.full,
+                      color: noteProject === null ? colors.accent : colors.textSecondary,
+                      cursor: "pointer", fontSize: 12, fontWeight: noteProject === null ? 600 : 400,
+                    }}
+                  >
+                    Sem projeto
+                  </button>
+                  {projects.filter((p) => !p.archived).map((p) => {
+                    const active = noteProject === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setNoteProject(p.id)}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 6,
+                          padding: "5px 11px",
+                          background: active ? `${p.color}20` : "var(--hq-inlay-bg)",
+                          border: active ? `1.5px solid ${p.color}70` : `1px solid var(--hq-border)`,
+                          borderRadius: radius.full,
+                          color: active ? p.color : colors.textSecondary,
+                          cursor: "pointer", fontSize: 12, fontWeight: active ? 700 : 400,
+                        }}
+                      >
+                        <span style={{ width: 7, height: 7, borderRadius: "50%", background: p.color }} />
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Conteúdo</label>
+                <textarea
+                  value={noteBody}
+                  onChange={(e) => setNoteBody(e.target.value)}
+                  placeholder="Escreva aqui..."
+                  rows={5}
+                  style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6, minHeight: 110 }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={!noteTitle.trim() || createNote.isPending}
+                style={submitBtnStyle}
+              >
+                {createNote.isPending ? "Salvando..." : "Salvar anotação"}
+              </button>
+            </form>
+          )}
+
+          {/* ── PURCHASE ── */}
+          {tab === "purchase" && (
+            <form onSubmit={submitPurchase} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Produto *</label>
+                <input
+                  autoFocus
+                  value={purchaseName}
+                  onChange={(e) => setPurchaseName(e.target.value)}
+                  placeholder="Nome do produto"
+                  required
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>Link da loja (opcional)</label>
+                <input
+                  type="url"
+                  value={purchaseUrl}
+                  onChange={(e) => setPurchaseUrl(e.target.value)}
+                  placeholder="https://..."
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle}>Preço estimado</label>
+                  <div style={{ position: "relative" }}>
+                    <span style={{
+                      position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+                      fontSize: 13, color: colors.textMuted, pointerEvents: "none",
+                    }}>R$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={purchasePrice}
+                      onChange={(e) => setPurchasePrice(e.target.value)}
+                      placeholder="0,00"
+                      style={{ ...inputStyle, paddingLeft: 32 }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ width: 100 }}>
+                  <label style={labelStyle}>Qtd.</label>
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 0,
+                    background: "var(--hq-inlay-bg)",
+                    border: `1px solid var(--hq-border)`,
+                    borderRadius: radius.md,
+                    overflow: "hidden",
+                    height: 36,
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => setPurchaseQty((q) => Math.max(1, q - 1))}
+                      style={{
+                        flex: 1, background: "none", border: "none",
+                        color: colors.textMuted, cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        padding: 0, height: "100%",
+                      }}
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <span style={{
+                      width: 32, textAlign: "center", fontSize: 13, fontWeight: 600,
+                      fontVariantNumeric: "tabular-nums",
+                    }}>{purchaseQty}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPurchaseQty((q) => q + 1)}
+                      style={{
+                        flex: 1, background: "none", border: "none",
+                        color: colors.textMuted, cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        padding: 0, height: "100%",
+                      }}
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Categoria</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                  {PURCHASE_CATEGORIES.map((cat) => {
+                    const active = purchaseCategory === cat.value;
+                    return (
+                      <button
+                        key={cat.value}
+                        type="button"
+                        onClick={() => setPurchaseCategory(cat.value)}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 5,
+                          padding: "5px 11px",
+                          background: active ? colors.accentSoft : "var(--hq-inlay-bg)",
+                          border: active ? `1.5px solid var(--hq-accent-border)` : `1px solid var(--hq-border)`,
+                          borderRadius: radius.full,
+                          color: active ? colors.accent : colors.textSecondary,
+                          cursor: "pointer", fontSize: 12, fontWeight: active ? 600 : 400,
+                          transition: `all 0.15s ${spring.gentle}`,
+                        }}
+                      >
+                        <span>{cat.emoji}</span>
+                        {cat.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={!purchaseName.trim() || createPurchase.isPending}
+                style={submitBtnStyle}
+              >
+                {createPurchase.isPending ? "Adicionando..." : "Adicionar à lista de compras"}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>
@@ -330,17 +705,17 @@ export function QuickAddModal({ onClose }: Props) {
 const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: 11,
-  fontWeight: 500,
-  color: colors.textSecondary,
+  fontWeight: 600,
+  color: colors.textMuted,
   marginBottom: 4,
   textTransform: "uppercase",
-  letterSpacing: "0.06em",
+  letterSpacing: "0.04em",
 };
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
-  background: colors.inlayBg,
-  border: `1px solid ${colors.border}`,
+  background: "var(--hq-inlay-bg)",
+  border: `1px solid var(--hq-border)`,
   color: colors.text,
   padding: "8px 10px",
   borderRadius: "8px",
@@ -350,13 +725,13 @@ const inputStyle: React.CSSProperties = {
 
 const submitBtnStyle: React.CSSProperties = {
   width: "100%",
-  background: colors.accent,
-  color: "#000",
+  background: "var(--hq-accent)",
+  color: "#fff",
   border: "none",
-  padding: "10px",
+  padding: "11px",
   borderRadius: "10px",
   cursor: "pointer",
   fontSize: 14,
-  fontWeight: 700,
+  fontWeight: 600,
   marginTop: 4,
 };

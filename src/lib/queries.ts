@@ -800,3 +800,131 @@ export function useSetTaskStatus() {
 // ─── legacy exports (backward compat during migration) ───────────────────────
 
 export { useProjects as useProjectsList };
+
+// ─── standalone notes (not project notes) ─────────────────────────────────────
+
+export function useNotes() {
+  return useQuery({
+    queryKey: ["notes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notes")
+        .select("*, project:projects(name, color)")
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+}
+
+export function useCreateNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { title: string; body?: string; project_id?: string | null }) => {
+      const { data: result, error } = await supabase
+        .from("notes")
+        .insert({ title: data.title, body: data.body ?? "", project_id: data.project_id ?? null })
+        .select()
+        .single();
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["notes"] }); },
+  });
+}
+
+export function useUpdateNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { title?: string; body?: string } }) => {
+      const { data: result, error } = await supabase
+        .from("notes")
+        .update({ ...data, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["notes"] }); },
+  });
+}
+
+export function useDeleteNote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("notes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["notes"] }); },
+  });
+}
+
+// ─── purchases ────────────────────────────────────────────────────────────────
+
+export function usePurchases() {
+  return useQuery({
+    queryKey: ["purchases"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("purchases")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+}
+
+export function useCreatePurchase() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      name: string; url?: string | null;
+      price_cents?: number; qty?: number;
+      category?: string;
+    }) => {
+      const { data: result, error } = await supabase
+        .from("purchases")
+        .insert({
+          name: data.name,
+          url: data.url ?? null,
+          price_cents: data.price_cents ?? 0,
+          qty: data.qty ?? 1,
+          category: data.category ?? "pessoal",
+          bought: false,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["purchases"] }); },
+  });
+}
+
+export function useTogglePurchaseBought() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, bought }: { id: string; bought: boolean }) => {
+      const { error } = await supabase
+        .from("purchases")
+        .update({ bought: !bought, bought_at: !bought ? new Date().toISOString() : null })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["purchases"] }); },
+  });
+}
+
+export function useDeletePurchase() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("purchases").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["purchases"] }); },
+  });
+}

@@ -1,14 +1,19 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, ListChecks, BarChart2, Bookmark, Plus } from "lucide-react";
+import { Home, ListChecks, BarChart2, ShoppingCart, Plus } from "lucide-react";
 import { useQuickAdd } from "@/routes/__root";
-import { colors, spring, radius } from "@/lib/tokens";
+import { colors, spring } from "@/lib/tokens";
 
-const TABS = [
-  { to: "/",          icon: Home,       label: "Início"   },
-  { to: "/tasks",     icon: ListChecks, label: "Tarefas"  },
-  { to: "/dashboard", icon: BarChart2,  label: "Painel"   },
-  { to: "/bookmarks", icon: Bookmark,   label: "Links"    },
-] as const;
+type TabDef = { to: string; icon: React.ComponentType<{ size: number; strokeWidth: number }>; label: string };
+
+const LEFT_TABS: TabDef[] = [
+  { to: "/",      icon: Home,       label: "Hoje"    },
+  { to: "/tasks", icon: ListChecks, label: "Tarefas" },
+];
+
+const RIGHT_TABS: TabDef[] = [
+  { to: "/dashboard", icon: BarChart2,   label: "Stats"  },
+  { to: "/purchases", icon: ShoppingCart, label: "Compras" },
+];
 
 export function MobileNav() {
   const { openQuickAdd } = useQuickAdd();
@@ -23,10 +28,10 @@ export function MobileNav() {
         left: 0,
         right: 0,
         zIndex: 100,
-        background: "rgba(18,18,18,0.88)",
-        backdropFilter: "blur(40px) saturate(1.8)",
-        WebkitBackdropFilter: "blur(40px) saturate(1.8)",
-        borderTop: `1px solid rgba(84,84,88,0.45)`,
+        background: "var(--hq-bg-elevated)",
+        backdropFilter: "blur(20px) saturate(1.8)",
+        WebkitBackdropFilter: "blur(20px) saturate(1.8)",
+        borderTop: `1px solid var(--hq-border)`,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-around",
@@ -37,7 +42,7 @@ export function MobileNav() {
         gap: 0,
       }}
     >
-      {TABS.slice(0, 2).map(({ to, icon: Icon, label }) => {
+      {LEFT_TABS.map(({ to, icon: Icon, label }) => {
         const active = currentPath === to;
         return (
           <Link
@@ -53,19 +58,15 @@ export function MobileNav() {
               paddingTop: 8,
               paddingBottom: 6,
               textDecoration: "none",
-              color: active ? colors.accent : colors.textMuted,
+              color: active ? "var(--hq-accent)" : colors.textMuted,
               transition: `color 0.15s ${spring.gentle}`,
               minHeight: 44,
             }}
           >
-            <Icon
-              size={22}
-              strokeWidth={active ? 2.2 : 1.7}
-              style={{ flexShrink: 0 }}
-            />
+            <Icon size={22} strokeWidth={active ? 2.25 : 1.75} />
             <span style={{
               fontSize: 10,
-              fontWeight: active ? 600 : 400,
+              fontWeight: active ? 600 : 500,
               letterSpacing: "-0.01em",
               lineHeight: 1,
             }}>
@@ -75,34 +76,34 @@ export function MobileNav() {
         );
       })}
 
-      {/* Central Quick Add button */}
+      {/* Central FAB */}
       <button
         onClick={openQuickAdd}
         aria-label="Adicionar"
         style={{
           flex: 0,
-          width: 52,
-          height: 52,
-          borderRadius: 16,
-          background: colors.accent,
+          width: 44,
+          height: 44,
+          borderRadius: 14,
+          background: "var(--hq-accent)",
           border: "none",
-          color: "#000",
+          color: "#fff",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
           flexShrink: 0,
-          boxShadow: `0 4px 16px ${colors.accent}60`,
+          boxShadow: `0 4px 12px rgba(10,132,255,0.55)`,
           transition: `transform 0.18s ${spring.bounce}, box-shadow 0.18s ${spring.gentle}`,
-          marginTop: -8,
+          marginTop: -16,
         }}
         onTouchStart={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.92)"; }}
         onTouchEnd={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
       >
-        <Plus size={24} strokeWidth={2.5} />
+        <Plus size={22} strokeWidth={2.5} />
       </button>
 
-      {TABS.slice(2).map(({ to, icon: Icon, label }) => {
+      {RIGHT_TABS.map(({ to, icon: Icon, label }) => {
         const active = currentPath === to;
         return (
           <Link
@@ -118,19 +119,15 @@ export function MobileNav() {
               paddingTop: 8,
               paddingBottom: 6,
               textDecoration: "none",
-              color: active ? colors.accent : colors.textMuted,
+              color: active ? "var(--hq-accent)" : colors.textMuted,
               transition: `color 0.15s ${spring.gentle}`,
               minHeight: 44,
             }}
           >
-            <Icon
-              size={22}
-              strokeWidth={active ? 2.2 : 1.7}
-              style={{ flexShrink: 0 }}
-            />
+            <Icon size={22} strokeWidth={active ? 2.25 : 1.75} />
             <span style={{
               fontSize: 10,
-              fontWeight: active ? 600 : 400,
+              fontWeight: active ? 600 : 500,
               letterSpacing: "-0.01em",
               lineHeight: 1,
             }}>

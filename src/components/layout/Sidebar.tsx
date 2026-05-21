@@ -3,7 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Home, ListChecks, Search, Bookmark, Plus, Download,
   Archive, ChevronDown, ChevronRight, RotateCcw, Sun, Moon,
-  BarChart2, PanelLeftClose, PanelLeftOpen,
+  BarChart2, PanelLeftClose, PanelLeftOpen, FileText, ShoppingCart,
 } from "lucide-react";
 import {
   useProjects, useArchivedProjects, useBookmarks,
@@ -12,11 +12,12 @@ import {
 import { PROJECT_COLORS } from "@/lib/types";
 import { useSearch, useQuickAdd } from "@/routes/__root";
 import { SearchModal } from "@/components/workspace/SearchModal";
-import { colors, spring, radius } from "@/lib/tokens";
+import { colors, spring, radius, NAV_TINTS } from "@/lib/tokens";
+import { SquircleIcon, ProjectSquircle } from "@/components/ui/squircle-icon";
 import { useTheme } from "@/hooks/use-theme";
 
-const COLLAPSED_W = 56;
-const EXPANDED_W = 240;
+const COLLAPSED_W = 64;
+const EXPANDED_W = 248;
 
 export function Sidebar() {
   const { data: projects = [] } = useProjects();
@@ -71,32 +72,48 @@ export function Sidebar() {
         width: w,
         flexShrink: 0,
         height: "100vh",
-        background: "rgba(0,0,0,0.85)",
-        backdropFilter: "blur(40px) saturate(1.6)",
-        WebkitBackdropFilter: "blur(40px) saturate(1.6)",
-        borderRight: `1px solid ${colors.separator}`,
+        background: "var(--hq-panel)",
+        backdropFilter: "blur(40px) saturate(1.8)",
+        WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+        borderRight: `1px solid var(--hq-border)`,
         display: "flex",
         flexDirection: "column",
         color: colors.text,
         overflow: "hidden",
-        transition: `width 0.25s ${spring.snappy}`,
+        transition: `width 220ms cubic-bezier(0.4, 0, 0.2, 1)`,
       }}>
 
-        {/* Header + collapse toggle */}
+        {/* Workspace header */}
         <div style={{
-          padding: collapsed ? "16px 0 14px" : "16px 12px 14px",
-          borderBottom: `1px solid ${colors.separator}`,
+          padding: collapsed ? "16px 0 14px" : "14px 12px 12px",
+          borderBottom: `1px solid var(--hq-border)`,
           display: "flex",
           alignItems: "center",
-          gap: 8,
+          gap: 10,
           justifyContent: collapsed ? "center" : "space-between",
         }}>
           {!collapsed && (
-            <div>
-              <div style={{ fontSize: 10, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500, marginBottom: 2 }}>
-                Command Center
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              {/* Workspace squircle */}
+              <span style={{
+                width: 32, height: 32, flexShrink: 0,
+                borderRadius: 9,
+                background: "linear-gradient(135deg, #0A84FF, #005FCC)",
+                boxShadow: "inset 0 0.5px 0 rgba(255,255,255,0.35), 0 1px 3px rgba(0,0,0,0.20)",
+                color: "#fff",
+                display: "grid", placeItems: "center",
+                fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em",
+              }}>
+                P
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: "-0.015em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  Pedro Melo
+                </div>
+                <div style={{ fontSize: 10, color: colors.textMuted, letterSpacing: "0.02em", marginTop: 1 }}>
+                  plmcc.task
+                </div>
               </div>
-              <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.02em" }}>Pedro's HQ</div>
             </div>
           )}
           <button
@@ -114,40 +131,73 @@ export function Sidebar() {
           </button>
         </div>
 
+        {/* Search button */}
+        {!collapsed && (
+          <div style={{ padding: "10px 10px 4px" }}>
+            <button
+              onClick={openSearch}
+              style={{
+                width: "100%",
+                display: "flex", alignItems: "center",
+                gap: 8,
+                padding: "7px 10px",
+                background: "var(--hq-inlay-bg)",
+                border: `1px solid var(--hq-border)`,
+                borderRadius: radius.full,
+                color: colors.textMuted,
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+            >
+              <SquircleIcon tint={NAV_TINTS.search} size={18}>
+                <Search size={10} strokeWidth={2.5} />
+              </SquircleIcon>
+              <span style={{ flex: 1, textAlign: "left" }}>Buscar</span>
+              <span className="kbd">⌘K</span>
+            </button>
+          </div>
+        )}
+
         {/* Nav */}
         <div style={{
-          padding: collapsed ? "8px 4px" : "8px",
-          borderBottom: `1px solid ${colors.separator}`,
+          padding: collapsed ? "8px 6px" : "8px 8px",
+          borderBottom: `1px solid var(--hq-border)`,
           display: "flex", flexDirection: "column", gap: 1,
         }}>
-          <NavLink to="/" icon={<Home size={15} />} label="Meu dia" active={currentPath === "/"} collapsed={collapsed} />
-          <NavLink to="/tasks" icon={<ListChecks size={15} />} label="Tarefas" active={currentPath === "/tasks"} collapsed={collapsed} />
-          <NavLink to="/dashboard" icon={<BarChart2 size={15} />} label="Dashboard" active={currentPath === "/dashboard"} collapsed={collapsed} />
-
-          <button
-            onClick={openSearch}
-            title="Buscar"
-            style={navBtnStyle(false, collapsed)}
-          >
-            <Search size={15} style={{ flexShrink: 0 }} />
-            {!collapsed && <><span style={{ flex: 1, textAlign: "left" }}>Buscar</span><span className="kbd">/</span></>}
-          </button>
-
+          <NavLink to="/" tint={NAV_TINTS.home} icon={<Home size={13} strokeWidth={2.25} />} label="Meu dia" active={currentPath === "/"} collapsed={collapsed} />
+          <NavLink to="/tasks" tint={NAV_TINTS.tasks} icon={<ListChecks size={13} strokeWidth={2.25} />} label="Tarefas" active={currentPath === "/tasks"} collapsed={collapsed} />
+          <NavLink to="/dashboard" tint={NAV_TINTS.dash} icon={<BarChart2 size={13} strokeWidth={2.25} />} label="Dashboard" active={currentPath === "/dashboard"} collapsed={collapsed} />
+          <NavLink to="/notes" tint={NAV_TINTS.notes} icon={<FileText size={13} strokeWidth={2.25} />} label="Anotações" active={currentPath === "/notes"} collapsed={collapsed} />
+          <NavLink to="/purchases" tint={NAV_TINTS.purchases} icon={<ShoppingCart size={13} strokeWidth={2.25} />} label="Compras" active={currentPath === "/purchases"} collapsed={collapsed} />
           <NavLink
             to="/bookmarks"
-            icon={<Bookmark size={15} />}
-            label="Links Salvos"
+            tint={NAV_TINTS.bookmarks}
+            icon={<Bookmark size={13} strokeWidth={2.25} />}
+            label="Links salvos"
             active={currentPath === "/bookmarks"}
             collapsed={collapsed}
             badge={bookmarks.length > 0 ? bookmarks.length : undefined}
           />
+
+          {/* Collapsed search button */}
+          {collapsed && (
+            <button
+              onClick={openSearch}
+              title="Buscar"
+              style={navBtnStyle(false, collapsed)}
+            >
+              <SquircleIcon tint={NAV_TINTS.search} size={22}>
+                <Search size={12} strokeWidth={2.5} />
+              </SquircleIcon>
+            </button>
+          )}
         </div>
 
         {/* Projects section */}
         {!collapsed && (
           <>
             <div style={{ padding: "10px 8px 4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ fontSize: 10, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 500, paddingLeft: 8 }}>
+              <div style={{ fontSize: 10, color: colors.textMuted, letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600, paddingLeft: 8 }}>
                 Projetos
               </div>
               <button onClick={() => setCreating(true)} style={iconBtnStyle} title="Novo projeto">
@@ -161,7 +211,7 @@ export function Sidebar() {
                 padding: 10,
                 background: colors.surface,
                 borderRadius: radius.md,
-                border: `1px solid ${colors.separator}`,
+                border: `1px solid var(--hq-border)`,
                 display: "flex", flexDirection: "column", gap: 8,
               }}>
                 <input
@@ -180,13 +230,13 @@ export function Sidebar() {
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={handleCreateProject} style={{
-                    flex: 1, background: colors.accent, color: "#000",
+                    flex: 1, background: colors.accent, color: "#fff",
                     border: "none", padding: "6px 10px", borderRadius: radius.sm,
                     cursor: "pointer", fontSize: 12, fontWeight: 600,
                   }}>Criar</button>
                   <button onClick={() => setCreating(false)} style={{
                     background: colors.surfaceRaised, color: colors.textSecondary,
-                    border: `1px solid ${colors.separator}`, padding: "6px 10px",
+                    border: `1px solid var(--hq-border)`, padding: "6px 10px",
                     borderRadius: radius.sm, cursor: "pointer", fontSize: 12,
                   }}>✕</button>
                 </div>
@@ -222,7 +272,7 @@ export function Sidebar() {
                       onMouseEnter={() => setHoveredId(p.id)} onMouseLeave={() => setHoveredId(null)}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px" }}>
-                        <span style={{ width: 7, height: 7, borderRadius: 4, background: p.color, flexShrink: 0 }} />
+                        <ProjectSquircle name={p.name} color={p.color} size={18} />
                         <Link to="/projects/$id" params={{ id: p.id }} style={{
                           flex: 1, fontSize: 13, color: colors.text, textDecoration: "none",
                           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -241,28 +291,29 @@ export function Sidebar() {
           </>
         )}
 
-        {/* Collapsed: project dots */}
+        {/* Collapsed: project squircles */}
         {collapsed && (
           <div style={{ flex: 1, overflowY: "auto", padding: "8px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
             {projects.map((p) => (
               <Link key={p.id} to="/projects/$id" params={{ id: p.id }} title={p.name} style={{ textDecoration: "none" }}>
                 <div style={{
-                  width: 32, height: 32, borderRadius: 8,
-                  background: currentPath === `/projects/${p.id}` ? colors.accentBg : colors.surfaceRaised,
+                  width: 36, height: 36, borderRadius: 10,
+                  background: currentPath === `/projects/${p.id}` ? colors.accentBg : "transparent",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  border: currentPath === `/projects/${p.id}` ? `1px solid ${colors.accentBorder}` : "1px solid transparent",
+                  border: currentPath === `/projects/${p.id}` ? `1px solid var(--hq-accent-border)` : "1px solid transparent",
+                  transition: `background 0.15s ${spring.gentle}`,
                 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 5, background: p.color, boxShadow: `0 0 6px ${p.color}80` }} />
+                  <ProjectSquircle name={p.name} color={p.color} size={24} />
                 </div>
               </Link>
             ))}
           </div>
         )}
 
-        {/* Footer: Quick Add + utility buttons */}
+        {/* Footer */}
         <div style={{
-          borderTop: `1px solid ${colors.separator}`,
-          padding: collapsed ? "8px 4px" : "8px",
+          borderTop: `1px solid var(--hq-border)`,
+          padding: collapsed ? "8px 6px" : "8px",
           display: "flex", flexDirection: "column", gap: 2,
         }}>
           {/* Quick Add */}
@@ -272,12 +323,12 @@ export function Sidebar() {
             style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: collapsed ? "center" : "flex-start",
+              justifyContent: collapsed ? "center" : "space-between",
               gap: 8,
-              padding: collapsed ? "10px 0" : "9px 10px",
-              background: colors.accentBg,
-              border: `1px solid ${colors.accentBorder}`,
-              borderRadius: radius.sm,
+              padding: collapsed ? "10px 0" : "9px 12px",
+              background: colors.accentSoft,
+              border: `1px solid var(--hq-accent-border)`,
+              borderRadius: radius.md,
               color: colors.accent,
               cursor: "pointer",
               fontSize: 13,
@@ -285,8 +336,11 @@ export function Sidebar() {
               width: "100%",
             }}
           >
-            <Plus size={15} style={{ flexShrink: 0 }} />
-            {!collapsed && <span>Adicionar</span>}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Plus size={15} style={{ flexShrink: 0 }} />
+              {!collapsed && <span>Adicionar</span>}
+            </div>
+            {!collapsed && <span className="kbd">⌘N</span>}
           </button>
 
           {!collapsed && (
@@ -321,16 +375,39 @@ export function Sidebar() {
 // ── NavLink ───────────────────────────────────────────────────────────────────
 
 function NavLink({
-  to, label, icon, active, collapsed, badge,
+  to, label, tint, icon, active, collapsed, badge,
 }: {
-  to: string; label: string; icon: React.ReactNode;
+  to: string; label: string; tint: string; icon: React.ReactNode;
   active: boolean; collapsed: boolean; badge?: number;
 }) {
   return (
     <Link to={to} style={{ textDecoration: "none" }} title={collapsed ? label : undefined}>
-      <div style={navBtnStyle(active, collapsed)}>
-        <span style={{ flexShrink: 0 }}>{icon}</span>
-        {!collapsed && <><span style={{ flex: 1, textAlign: "left" }}>{label}</span>{badge !== undefined && <SidebarBadge>{badge}</SidebarBadge>}</>}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: collapsed ? "center" : "flex-start",
+        gap: 10,
+        padding: collapsed ? "9px 0" : "7px 10px",
+        background: active ? colors.accentSoft : "transparent",
+        color: active ? colors.accent : colors.text,
+        border: "none",
+        borderRadius: radius.md,
+        cursor: "pointer",
+        fontSize: 13,
+        width: "100%",
+        fontWeight: active ? 600 : 400,
+        transition: `background 0.15s ${spring.gentle}`,
+      }}
+        onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(120,120,128,0.12)"; }}
+        onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+      >
+        <SquircleIcon tint={tint} size={22}>{icon}</SquircleIcon>
+        {!collapsed && (
+          <>
+            <span style={{ flex: 1, textAlign: "left" }}>{label}</span>
+            {badge !== undefined && <SidebarBadge>{badge}</SidebarBadge>}
+          </>
+        )}
       </div>
     </Link>
   );
@@ -350,26 +427,26 @@ function ProjectRow({
   const done = tasks.filter((t) => t.status === "done").length;
   const pending = total - done;
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
-  const barColor = pct === 100 ? colors.success : color;
+  const barColor = pct === 100 ? "var(--hq-success)" : color;
 
   return (
     <div onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <Link to="/projects/$id" params={{ id }} style={{ textDecoration: "none" }}>
         <div style={{
-          display: "flex", alignItems: "center", gap: 8, padding: "6px 10px",
-          background: active ? colors.accentBg : hovered ? "rgba(255,255,255,0.05)" : "transparent",
+          display: "flex", alignItems: "center", gap: 9, padding: "6px 10px",
+          background: active ? colors.accentSoft : hovered ? "rgba(120,120,128,0.10)" : "transparent",
           color: active ? colors.accent : colors.text,
-          borderRadius: "8px", fontSize: 13,
+          borderRadius: radius.md, fontSize: 13,
           transition: `background 0.15s ${spring.gentle}`,
         }}>
-          <span style={{ width: 8, height: 8, borderRadius: 4, background: color, flexShrink: 0, boxShadow: `0 0 5px ${color}66` }} />
+          <ProjectSquircle name={name} color={color} size={22} />
           <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
           {hovered ? (
             <button onClick={(e) => { e.preventDefault(); onArchive(); }} style={{ ...iconBtnStyle, padding: 2 }}>
               <Archive size={11} />
             </button>
           ) : pct === 100 && total > 0 ? (
-            <span style={{ color: colors.success, fontSize: 11 }}>✓</span>
+            <span style={{ color: "var(--hq-success)", fontSize: 11 }}>✓</span>
           ) : pending > 0 ? (
             <SidebarBadge>{pending}</SidebarBadge>
           ) : null}
@@ -390,7 +467,7 @@ function SidebarBadge({ children }: { children: React.ReactNode }) {
   return (
     <span style={{
       fontSize: 10, padding: "1px 6px",
-      background: colors.surfaceRaised, color: colors.textSecondary,
+      background: "var(--hq-inlay-bg)", color: colors.textSecondary,
       borderRadius: "99px", minWidth: 18, textAlign: "center",
       fontVariantNumeric: "tabular-nums",
     }}>{children}</span>
@@ -405,10 +482,10 @@ const navBtnStyle = (active: boolean, collapsed: boolean): React.CSSProperties =
   justifyContent: collapsed ? "center" : "flex-start",
   gap: 8,
   padding: collapsed ? "9px 0" : "7px 10px",
-  background: active ? colors.accentBg : "transparent",
+  background: active ? colors.accentSoft : "transparent",
   color: active ? colors.accent : colors.text,
   border: "none",
-  borderRadius: "8px",
+  borderRadius: radius.md,
   cursor: "pointer",
   fontSize: 13,
   width: "100%",
@@ -424,9 +501,9 @@ const iconBtnStyle: React.CSSProperties = {
 };
 
 const inputSmStyle: React.CSSProperties = {
-  background: colors.surfaceRaised,
-  border: `1px solid ${colors.separator}`,
+  background: "var(--hq-inlay-bg)",
+  border: `1px solid var(--hq-border)`,
   color: colors.text, padding: "7px 9px",
-  borderRadius: "8px", fontSize: 13,
+  borderRadius: radius.md, fontSize: 13,
   width: "100%", boxSizing: "border-box",
 };
