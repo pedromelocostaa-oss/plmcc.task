@@ -57,6 +57,7 @@ export function QuickAddModal({ onClose }: Props) {
   const [taskProject, setTaskProject] = useState("");
   const [taskDate, setTaskDate] = useState(todayIso());
   const [taskPriority, setTaskPriority] = useState<1 | 2 | 3>(2);
+  const [taskRecurrence, setTaskRecurrence] = useState<"" | "daily" | "weekly" | "monthly">("");
   const [taskDesc, setTaskDesc] = useState("");
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [subtaskInput, setSubtaskInput] = useState("");
@@ -103,6 +104,12 @@ export function QuickAddModal({ onClose }: Props) {
     setSubtasks((s) => s.filter((st) => st.id !== id));
   }
 
+  const RECURRENCES = [
+    { value: "daily",   label: "Diário",   emoji: "🔁" },
+    { value: "weekly",  label: "Semanal",  emoji: "📅" },
+    { value: "monthly", label: "Mensal",   emoji: "🗓️" },
+  ] as const;
+
   async function submitTask(e: React.FormEvent) {
     e.preventDefault();
     if (!taskTitle.trim() || !taskProject) return;
@@ -114,8 +121,10 @@ export function QuickAddModal({ onClose }: Props) {
         priority: taskPriority,
         description: taskDesc.trim() || null,
         status: "todo",
+        recurrence: taskRecurrence || null,
       });
       toast.success("Tarefa criada!");
+      setTaskRecurrence("");
       onClose();
     } catch {
       toast.error("Erro ao criar tarefa");
@@ -370,6 +379,29 @@ export function QuickAddModal({ onClose }: Props) {
                       </button>
                     ))}
                   </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 0 }}>
+                <label style={labelStyle}>Recorrência</label>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                  {RECURRENCES.map((r) => (
+                    <button
+                      key={r.value}
+                      type="button"
+                      onClick={() => setTaskRecurrence((prev) => prev === r.value ? "" : r.value)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 5,
+                        padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 500, cursor: "pointer",
+                        background: taskRecurrence === r.value ? "var(--hq-accent-bg)" : "var(--hq-inlay-bg)",
+                        border: `1px solid ${taskRecurrence === r.value ? "var(--hq-accent-border)" : "var(--hq-border)"}`,
+                        color: taskRecurrence === r.value ? "var(--hq-accent)" : colors.textSecondary,
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      <span>{r.emoji}</span> {r.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 

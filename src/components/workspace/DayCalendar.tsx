@@ -5,7 +5,7 @@ import type { CalendarEvent } from "@/lib/calendar-api";
 import { colors, spring, radius } from "@/lib/tokens";
 
 // Plain fetch — no createServerFn, works in every environment
-async function fetchCalendarEvents(date: string): Promise<CalendarEvent[]> {
+export async function fetchCalendarEvents(date: string): Promise<CalendarEvent[]> {
   try {
     const res = await fetch(`/api/calendar?date=${encodeURIComponent(date)}`);
     if (!res.ok) return [];

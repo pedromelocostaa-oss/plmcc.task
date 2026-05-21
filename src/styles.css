@@ -9,7 +9,7 @@
   --color-card-hover: #333333;
   --color-border: rgba(255,255,255,0.07);
   --color-border-subtle: rgba(255,255,255,0.05);
-  --color-accent: #0A84FF;
+  --color-accent: #E58430;
   --color-text: rgba(255,255,255,0.94);
   --color-muted: rgba(255,255,255,0.62);
   --color-dim: rgba(255,255,255,0.40);
@@ -20,7 +20,7 @@
   --color-purple: #BF5AF2;
   --color-background: #1A1A1A;
   --color-foreground: rgba(255,255,255,0.94);
-  --color-primary: #0A84FF;
+  --color-primary: #E58430;
   --color-primary-foreground: #FFFFFF;
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
   --font-mono: "SF Mono", "Fira Code", ui-monospace, monospace;
@@ -58,12 +58,12 @@
   --hq-text-quaternary: rgba(255,255,255,0.22);
   --hq-text-faint:      rgba(255,255,255,0.22);
 
-  /* ── Accent — systemBlue ──────────────────────────── */
-  --hq-accent:          #0A84FF;
-  --hq-accent-soft:     rgba(10,132,255,0.12);
-  --hq-accent-strong:   rgba(10,132,255,0.22);
-  --hq-accent-bg:       rgba(10,132,255,0.12);
-  --hq-accent-border:   rgba(10,132,255,0.22);
+  /* ── Accent — amber brand ────────────────────────── */
+  --hq-accent:          #E58430;
+  --hq-accent-soft:     rgba(229,132,48,0.14);
+  --hq-accent-strong:   rgba(229,132,48,0.24);
+  --hq-accent-bg:       rgba(229,132,48,0.14);
+  --hq-accent-border:   rgba(229,132,48,0.24);
 
   /* ── Status ────────────────────────────────────────── */
   --hq-success:         #30D158;
@@ -221,11 +221,11 @@ html[data-theme="light"] {
   --hq-text-quaternary: rgba(60,60,67,0.30);
   --hq-text-faint:      rgba(60,60,67,0.30);
 
-  --hq-accent:          #007AFF;
-  --hq-accent-soft:     rgba(0,122,255,0.10);
-  --hq-accent-strong:   rgba(0,122,255,0.18);
-  --hq-accent-bg:       rgba(0,122,255,0.10);
-  --hq-accent-border:   rgba(0,122,255,0.18);
+  --hq-accent:          #D4700A;
+  --hq-accent-soft:     rgba(212,112,10,0.12);
+  --hq-accent-strong:   rgba(212,112,10,0.20);
+  --hq-accent-bg:       rgba(212,112,10,0.12);
+  --hq-accent-border:   rgba(212,112,10,0.20);
 
   --hq-success:         #34C759;
   --hq-warning:         #FF9500;
@@ -250,13 +250,13 @@ html[data-theme="light"] {
   --color-card-hover:       #F2F2F7;
   --color-border:           rgba(60,60,67,0.10);
   --color-border-subtle:    rgba(60,60,67,0.07);
-  --color-accent:           #007AFF;
+  --color-accent:           #D4700A;
   --color-text:             #1C1C1E;
   --color-muted:            rgba(60,60,67,0.72);
   --color-dim:              rgba(60,60,67,0.50);
   --color-background:       #F2F2F7;
   --color-foreground:       #1C1C1E;
-  --color-primary:          #007AFF;
+  --color-primary:          #D4700A;
   --color-primary-foreground: #FFFFFF;
 }
 

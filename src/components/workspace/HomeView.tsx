@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, CalendarDays, AlignLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useProjects, useTasksForDate, useSetTaskStatus } from "@/lib/queries";
 import type { Task } from "@/lib/types";
 import { colors, spring, radius } from "@/lib/tokens";
-import { DayCalendar } from "@/components/workspace/DayCalendar";
+import { DayCalendar, fetchCalendarEvents } from "@/components/workspace/DayCalendar";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import type { CalendarEvent } from "@/lib/calendar-api";
 
 // ── date helpers ─────────────────────────────────────────────────────────────
 
@@ -28,6 +30,139 @@ function formatDateLabel(date: Date): string {
     weekday: "long", day: "numeric", month: "long",
     timeZone: "America/Sao_Paulo",
   });
+}
+
+function getWeekDays(referenceDate: Date): Date[] {
+  // Get Mon–Sun of the week containing referenceDate
+  const d = new Date(referenceDate);
+  // getDay(): 0=Sun,1=Mon,...,6=Sat
+  const dow = d.getDay();
+  const diffToMon = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diffToMon);
+  return Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(monday);
+    day.setDate(monday.getDate() + i);
+    return day;
+  });
+}
+
+const DAY_ABBR = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+const EVENT_COLORS_WEEK = [
+  { bg: "rgba(255,107,0,0.18)", border: "#FF6B00", text: "#FF6B00" },
+  { bg: "rgba(10,132,255,0.18)", border: "#0A84FF", text: "#0A84FF" },
+  { bg: "rgba(48,209,88,0.18)", border: "#30D158", text: "#30D158" },
+  { bg: "rgba(191,90,242,0.18)", border: "#BF5AF2", text: "#BF5AF2" },
+  { bg: "rgba(255,159,10,0.18)", border: "#FF9F0A", text: "#FF9F0A" },
+];
+
+// ── WeekDayColumn ─────────────────────────────────────────────────────────────
+
+function WeekDayColumn({ day, isRef }: { day: Date; isRef: boolean }) {
+  const iso = toIso(day);
+  const todayIso = toIso(new Date());
+  const isToday = iso === todayIso;
+  const { data: events = [] } = useQuery<CalendarEvent[]>({
+    queryKey: ["calendar-events", iso],
+    queryFn: () => fetchCalendarEvents(iso),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  const dowLabel = DAY_ABBR[day.getDay()];
+  const dayNum = day.getDate();
+
+  return (
+    <div style={{
+      flex: 1,
+      minWidth: 0,
+      display: "flex",
+      flexDirection: "column",
+      borderRight: `1px solid ${colors.separator}`,
+    }}>
+      {/* Day header */}
+      <div style={{
+        padding: "6px 4px",
+        textAlign: "center",
+        borderBottom: `1px solid ${colors.separator}`,
+        flexShrink: 0,
+        background: isToday ? "rgba(229,132,48,0.10)" : "transparent",
+      }}>
+        <div style={{ fontSize: 9, color: isToday ? colors.accent : colors.textMuted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          {dowLabel}
+        </div>
+        <div style={{
+          fontSize: 15, fontWeight: isToday ? 700 : 500,
+          color: isToday ? colors.accent : (isRef ? colors.text : colors.textSecondary),
+          lineHeight: 1.2,
+        }}>
+          {dayNum}
+        </div>
+        {isToday && (
+          <div style={{ fontSize: 8, color: colors.accent, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+            hoje
+          </div>
+        )}
+      </div>
+
+      {/* Events */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "4px 3px", display: "flex", flexDirection: "column", gap: 2 }}>
+        {events.map((ev, i) => {
+          const c = EVENT_COLORS_WEEK[i % EVENT_COLORS_WEEK.length];
+          return (
+            <a
+              key={ev.id}
+              href={ev.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={ev.title}
+              style={{
+                display: "block",
+                padding: "2px 5px",
+                borderRadius: 4,
+                background: c.bg,
+                borderLeft: `2px solid ${c.border}`,
+                fontSize: 10,
+                color: colors.text,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                textDecoration: "none",
+                flexShrink: 0,
+              }}
+            >
+              {ev.title}
+            </a>
+          );
+        })}
+        {events.length === 0 && (
+          <div style={{ flex: 1 }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── WeekCalendarInline ────────────────────────────────────────────────────────
+
+function WeekCalendarInline({ referenceDate }: { referenceDate: Date }) {
+  const weekDays = getWeekDays(referenceDate);
+  const refIso = toIso(referenceDate);
+
+  return (
+    <div style={{
+      flex: 1,
+      display: "flex",
+      flexDirection: "row",
+      overflow: "hidden",
+      minHeight: 0,
+    }}>
+      {weekDays.map((day) => (
+        <WeekDayColumn key={toIso(day)} day={day} isRef={toIso(day) === refIso} />
+      ))}
+    </div>
+  );
 }
 
 // ── column config ────────────────────────────────────────────────────────────
@@ -425,6 +560,8 @@ export function HomeView() {
   const [sortByPriority, setSortByPriority] = useState(false);
   const [mobileColumn, setMobileColumn] = useState<Task["status"]>("todo");
   const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarView, setCalendarView] = useState<"day" | "week">("day");
+  const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<Task["status"] | null>(null);
   const isMobile = useIsMobile();
@@ -472,6 +609,93 @@ export function HomeView() {
   }
 
   const activeProjects = projects.filter((p) => !p.archived);
+
+  // Calendar panel (shared between mobile and desktop)
+  const calendarPanel = (
+    <div style={{
+      width: isMobile ? "100%" : calendarExpanded ? "100%" : 340,
+      flexShrink: 0,
+      borderLeft: isMobile ? "none" : `1px solid ${colors.separator}`,
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+      height: "100%",
+    }}>
+      {/* Calendar panel header */}
+      <div style={{
+        padding: "10px 14px",
+        borderBottom: `1px solid ${colors.separator}`,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        flexShrink: 0,
+      }}>
+        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, letterSpacing: "-0.01em" }}>Agenda</span>
+
+        {/* Day / Week segmented toggle */}
+        <div style={{
+          display: "flex",
+          background: colors.surface,
+          borderRadius: radius.sm,
+          padding: 2,
+          border: `1px solid ${colors.separator}`,
+          gap: 0,
+        }}>
+          {(["day", "week"] as const).map((v) => {
+            const active = calendarView === v;
+            return (
+              <button
+                key={v}
+                onClick={() => setCalendarView(v)}
+                style={{
+                  padding: "3px 10px",
+                  borderRadius: 5,
+                  border: "none",
+                  background: active ? colors.accentBg : "transparent",
+                  color: active ? colors.accent : colors.textMuted,
+                  cursor: "pointer",
+                  fontSize: 11,
+                  fontWeight: active ? 700 : 400,
+                  transition: `all 0.15s ${spring.gentle}`,
+                }}
+              >
+                {v === "day" ? "Dia" : "Semana"}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Expand/collapse button — desktop only */}
+        {!isMobile && (
+          <button
+            onClick={() => setCalendarExpanded((v) => !v)}
+            title={calendarExpanded ? "Minimizar" : "Expandir"}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: colors.textMuted,
+              cursor: "pointer",
+              padding: 4,
+              borderRadius: 6,
+              display: "flex",
+              alignItems: "center",
+              transition: `color 0.15s ${spring.gentle}`,
+            }}
+          >
+            {calendarExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          </button>
+        )}
+      </div>
+
+      {/* Calendar content */}
+      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
+        {calendarView === "day"
+          ? <DayCalendar isoDate={selectedIso} isToday={isToday} />
+          : <WeekCalendarInline referenceDate={selectedDate} />
+        }
+      </div>
+    </div>
+  );
 
   return (
     <div style={{
@@ -590,7 +814,7 @@ export function HomeView() {
                 flexShrink: 0,
               }}
             >
-              <CalendarDays size={12} />
+              <Calendar size={12} />
               Agenda
             </button>
           )}
@@ -644,8 +868,8 @@ export function HomeView() {
       {isMobile ? (
         /* ── MOBILE: single column or calendar ── */
         showCalendar ? (
-          <div style={{ flex: 1, padding: "12px 12px 80px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <DayCalendar isoDate={selectedIso} isToday={isToday} />
+          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            {calendarPanel}
           </div>
         ) : (
           <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "12px 12px 80px" }}>
@@ -672,47 +896,47 @@ export function HomeView() {
           </div>
         )
       ) : (
-        /* ── DESKTOP: 3-column kanban + calendar panel ── */
-        <div style={{ flex: 1, display: "flex", gap: 0, overflow: "hidden" }}>
-          <div style={{
-            flex: 1, display: "flex", gap: 10,
-            padding: "14px 14px 14px",
-            overflow: "hidden",
-            minWidth: 0,
-          }}>
-            {isLoading ? (
-              Array.from({ length: 3 }, (_, i) => (
-                <div key={i} style={{
-                  flex: 1, background: colors.surface, borderRadius: radius.lg,
-                  border: `1px solid ${colors.border}`, opacity: 0.4,
-                }} />
-              ))
-            ) : (
-              columns.map((col) => (
-                <KanbanColumn
-                  key={col.status}
-                  config={col}
-                  tasks={col.tasks}
-                  onMove={handleMove}
-                  draggedTaskId={draggedTaskId}
-                  isDragOver={dragOverColumn === col.status}
-                  onDragOver={(e) => { e.preventDefault(); setDragOverColumn(col.status); }}
-                  onDrop={(e) => { e.preventDefault(); handleDrop(col.status); }}
-                  onDragLeave={() => setDragOverColumn(null)}
-                  onCardDragStart={(id) => setDraggedTaskId(id)}
-                  onCardDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); }}
-                />
-              ))
-            )}
-          </div>
+        /* ── DESKTOP: kanban + calendar panel side by side ── */
+        <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
+          {/* Kanban side — hidden when calendar is expanded */}
+          {!calendarExpanded && (
+            <div style={{
+              flex: 1,
+              display: "flex",
+              gap: 10,
+              padding: "14px 14px 14px",
+              overflow: "hidden",
+              minWidth: 0,
+            }}>
+              {isLoading ? (
+                Array.from({ length: 3 }, (_, i) => (
+                  <div key={i} style={{
+                    flex: 1, background: colors.surface, borderRadius: radius.lg,
+                    border: `1px solid ${colors.border}`, opacity: 0.4,
+                  }} />
+                ))
+              ) : (
+                columns.map((col) => (
+                  <KanbanColumn
+                    key={col.status}
+                    config={col}
+                    tasks={col.tasks}
+                    onMove={handleMove}
+                    draggedTaskId={draggedTaskId}
+                    isDragOver={dragOverColumn === col.status}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverColumn(col.status); }}
+                    onDrop={(e) => { e.preventDefault(); handleDrop(col.status); }}
+                    onDragLeave={() => setDragOverColumn(null)}
+                    onCardDragStart={(id) => setDraggedTaskId(id)}
+                    onCardDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); }}
+                  />
+                ))
+              )}
+            </div>
+          )}
 
-          <div style={{
-            width: 320, flexShrink: 0,
-            padding: "14px 14px 14px 0",
-            display: "flex", flexDirection: "column",
-          }}>
-            <DayCalendar isoDate={selectedIso} isToday={isToday} />
-          </div>
+          {/* Calendar panel — desktop always visible */}
+          {calendarPanel}
         </div>
       )}
     </div>

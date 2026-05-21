@@ -11,6 +11,10 @@ import type {
   Bookmark,
 } from "./types";
 
+// ─── db alias (bypass strict types for tables not in generated schema) ───────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function todayBrasilia(): string {
@@ -268,17 +272,19 @@ export function useCreateTask() {
       priority?: Task['priority'];
       due_date?: string | null;
       position?: number;
+      recurrence?: string | null;
     }): Promise<Task> => {
-      const { data: result, error } = await supabase
+      const { data: result, error } = await db
         .from("tasks")
         .insert({
-        project_id: data.project_id,
+          project_id: data.project_id,
           title: data.title,
           description: data.description ?? '',
           status: data.status ?? 'todo',
           priority: data.priority ?? 2,
           due_date: data.due_date ?? null,
           position: data.position ?? 0,
+          recurrence: data.recurrence ?? null,
         })
         .select()
         .single();
@@ -763,19 +769,48 @@ export function useTasksForDate(date: string) {
 
 // ─── set task status directly (for kanban) ───────────────────────────────────
 
+function nextRecurrenceDate(dueDate: string, recurrence: string): string {
+  const d = new Date(dueDate + "T12:00:00");
+  if (recurrence === "daily") {
+    d.setDate(d.getDate() + 1);
+  } else if (recurrence === "weekly") {
+    d.setDate(d.getDate() + 7);
+  } else if (recurrence === "monthly") {
+    d.setMonth(d.getMonth() + 1);
+  }
+  return d.toLocaleDateString("en-CA");
+}
+
 export function useSetTaskStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, status, projectId }: { id: string; status: Task['status']; projectId: string }): Promise<Task> => {
       const completed_at = status === 'done' ? new Date().toISOString() : null;
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("tasks")
         .update({ status, completed_at })
         .eq("id", id)
         .select()
         .single();
       if (error) throw error;
-      return data as unknown as Task;
+      const updatedTask = data as any;
+
+      // Auto-spawn next recurrence when task is marked done
+      if (status === 'done' && updatedTask.recurrence && updatedTask.due_date) {
+        const nextDue = nextRecurrenceDate(updatedTask.due_date, updatedTask.recurrence);
+        await db.from("tasks").insert({
+          project_id: updatedTask.project_id,
+          title: updatedTask.title,
+          description: updatedTask.description ?? null,
+          priority: updatedTask.priority ?? 2,
+          status: 'todo',
+          due_date: nextDue,
+          position: updatedTask.position ?? 0,
+          recurrence: updatedTask.recurrence,
+        });
+      }
+
+      return updatedTask as unknown as Task;
     },
     onMutate: async ({ id, status }) => {
       // Optimistic: update all date-keyed caches
@@ -802,9 +837,6 @@ export function useSetTaskStatus() {
 export { useProjects as useProjectsList };
 
 // ─── standalone notes (not project notes) ─────────────────────────────────────
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = supabase as any;
 
 export function useNotes() {
   return useQuery({
