@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Archive, Trash2, Plus, ArrowUpDown, Tag as TagIcon,
-  ExternalLink, Link as LinkIcon, RotateCcw,
+  ExternalLink, Link as LinkIcon, RotateCcw, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -542,6 +542,8 @@ function InlineTaskForm({
 
 // ─── LinksTab ─────────────────────────────────────────────────────────────────
 
+type PendingLink = { id: string; url: string; title: string };
+
 function LinksTab({
   links, onAdd, onDelete,
 }: {
@@ -549,23 +551,133 @@ function LinksTab({
   onAdd: (title: string, url: string) => void;
   onDelete: (id: string) => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [url, setUrl] = useState("");
+  const [pending, setPending] = useState<PendingLink[]>([
+    { id: crypto.randomUUID(), url: "", title: "" },
+  ]);
+  const [saving, setSaving] = useState(false);
+
+  function addRow() {
+    setPending((prev) => [...prev, { id: crypto.randomUUID(), url: "", title: "" }]);
+  }
+
+  function removeRow(id: string) {
+    setPending((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      return next.length > 0 ? next : [{ id: crypto.randomUUID(), url: "", title: "" }];
+    });
+  }
+
+  function updateRow(id: string, field: "url" | "title", value: string) {
+    setPending((prev) => prev.map((r) => r.id === id ? { ...r, [field]: value } : r));
+  }
+
+  async function handleSave() {
+    const valid = pending.filter((r) => r.url.trim());
+    if (!valid.length) return;
+    setSaving(true);
+    for (const r of valid) {
+      onAdd(r.title.trim(), r.url.trim());
+    }
+    setSaving(false);
+    setPending([{ id: crypto.randomUUID(), url: "", title: "" }]);
+  }
+
+  const hasContent = pending.some((r) => r.url.trim());
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título (opcional)"
-          style={{ ...inputStyle, width: 220 }} />
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..."
-          style={{ ...inputStyle, flex: 1 }} />
-        <button onClick={() => { if (url.trim()) { onAdd(title.trim(), url.trim()); setTitle(""); setUrl(""); } }} style={accentBtn}>
-          <Plus size={14} /> Adicionar
-        </button>
+      {/* ── Add links form ── */}
+      <div style={{
+        background: colors.surface,
+        border: `1px solid ${colors.border}`,
+        borderRadius: 10,
+        padding: "14px 16px",
+        marginBottom: 18,
+      }}>
+        <div style={{
+          fontSize: 11, fontFamily: "JetBrains Mono, monospace",
+          color: colors.textMuted, letterSpacing: 1, marginBottom: 10,
+        }}>
+          ADICIONAR LINKS
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {pending.map((row, idx) => (
+            <div key={row.id} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{
+                fontSize: 11, color: colors.textMuted,
+                fontFamily: "JetBrains Mono, monospace",
+                width: 18, flexShrink: 0, textAlign: "right",
+              }}>{idx + 1}.</span>
+              <input
+                autoFocus={idx === pending.length - 1 && idx > 0}
+                value={row.url}
+                onChange={(e) => updateRow(row.id, "url", e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); addRow(); }
+                }}
+                placeholder="https://..."
+                style={{ ...inputStyle, flex: 2 }}
+              />
+              <input
+                value={row.title}
+                onChange={(e) => updateRow(row.id, "title", e.target.value)}
+                placeholder="Título (opcional)"
+                style={{ ...inputStyle, flex: 1 }}
+              />
+              <button
+                onClick={() => removeRow(row.id)}
+                title="Remover linha"
+                style={{
+                  background: "transparent", border: "none",
+                  color: colors.textMuted, cursor: "pointer",
+                  padding: 4, borderRadius: 4, flexShrink: 0,
+                  display: "flex", alignItems: "center",
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = colors.danger; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = colors.textMuted; }}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "center" }}>
+          <button onClick={addRow} style={ghostBtn}>
+            <Plus size={13} /> Adicionar novo link
+          </button>
+          <div style={{ flex: 1 }} />
+          {hasContent && (
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={accentBtn}
+            >
+              Salvar {pending.filter((r) => r.url.trim()).length > 1
+                ? `${pending.filter((r) => r.url.trim()).length} links`
+                : "link"}
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* ── Saved links list ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {links.length > 0 && (
+          <div style={{
+            fontSize: 11, fontFamily: "JetBrains Mono, monospace",
+            color: colors.textMuted, letterSpacing: 1, marginBottom: 4,
+          }}>
+            LINKS SALVOS · {links.length}
+          </div>
+        )}
         {links.map((l) => <LinkRow key={l.id} link={l} onDelete={() => onDelete(l.id)} />)}
-        {links.length === 0 && <div style={{ color: colors.textMuted, fontSize: 13 }}>Nenhum link adicionado.</div>}
+        {links.length === 0 && (
+          <div style={{ color: colors.textMuted, fontSize: 13, padding: "12px 0" }}>
+            Nenhum link salvo ainda.
+          </div>
+        )}
       </div>
     </div>
   );
