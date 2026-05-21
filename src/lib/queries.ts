@@ -749,19 +749,52 @@ export function useStats() {
 }
 
 // ─── tasks for a specific date ───────────────────────────────────────────────
+// When fetching TODAY, also pulls overdue tasks (todo/doing with due_date < today)
+// so they automatically roll over and appear in the same columns.
 
 export function useTasksForDate(date: string) {
+  const todayIso = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const isToday = date === todayIso;
+
   return useQuery({
-    queryKey: ["tasks", "date", date],
+    queryKey: ["tasks", "date", date, isToday ? "with-overdue" : "exact"],
     queryFn: async (): Promise<Task[]> => {
-      const { data, error } = await supabase
+      const SELECT = "*, subtasks(*), task_tags(*), project:projects(name, color)";
+
+      // Always fetch tasks whose due_date matches the selected date
+      const { data: dayTasks, error: dayErr } = await supabase
         .from("tasks")
-        .select("*, subtasks(*), task_tags(*), project:projects(name, color)")
+        .select(SELECT)
         .eq("due_date", date)
         .order("priority")
         .order("position");
-      if (error) throw error;
-      return (data ?? []) as unknown as Task[];
+      if (dayErr) throw dayErr;
+
+      let overdue: typeof dayTasks = [];
+
+      // When viewing today, also fetch past uncompleted tasks so they roll over
+      if (isToday) {
+        const { data: od, error: odErr } = await supabase
+          .from("tasks")
+          .select(SELECT)
+          .lt("due_date", date)                       // strictly before today
+          .in("status", ["todo", "doing"])            // not done
+          .order("due_date")                          // oldest first
+          .order("priority");
+        if (odErr) throw odErr;
+        overdue = od ?? [];
+      }
+
+      // Merge: overdue first (older dates surface at the top), then today's tasks
+      const seen = new Set<string>();
+      const merged: Task[] = [];
+      for (const t of [...overdue, ...(dayTasks ?? [])]) {
+        if (!seen.has((t as Task).id)) {
+          seen.add((t as Task).id);
+          merged.push(t as unknown as Task);
+        }
+      }
+      return merged;
     },
     enabled: !!date,
   });
