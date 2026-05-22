@@ -749,19 +749,17 @@ export function useStats() {
 }
 
 // ─── tasks for a specific date ───────────────────────────────────────────────
-// When fetching TODAY, also pulls overdue tasks (todo/doing with due_date < today)
-// so they automatically roll over and appear in the same columns.
+// Rule: show tasks for the selected date (all statuses) PLUS any task with
+// due_date BEFORE the selected date that is still todo/doing (rollover).
+// This means uncompleted tasks always bubble forward until they're done.
 
 export function useTasksForDate(date: string) {
-  const todayIso = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-  const isToday = date === todayIso;
-
   return useQuery({
-    queryKey: ["tasks", "date", date, isToday ? "with-overdue" : "exact"],
+    queryKey: ["tasks", "date", date],
     queryFn: async (): Promise<Task[]> => {
       const SELECT = "*, subtasks(*), task_tags(*), project:projects(name, color)";
 
-      // Always fetch tasks whose due_date matches the selected date
+      // 1. Tasks for this exact date (all statuses — shows completed ones too)
       const { data: dayTasks, error: dayErr } = await supabase
         .from("tasks")
         .select(SELECT)
@@ -770,28 +768,24 @@ export function useTasksForDate(date: string) {
         .order("position");
       if (dayErr) throw dayErr;
 
-      let overdue: typeof dayTasks = [];
+      // 2. Past uncompleted tasks — rolls forward to any future view
+      const { data: overdue, error: odErr } = await supabase
+        .from("tasks")
+        .select(SELECT)
+        .lt("due_date", date)          // strictly before selected date
+        .neq("status", "done")         // not completed
+        .order("due_date")             // oldest first inside the list
+        .order("priority");
+      if (odErr) throw odErr;
 
-      // When viewing today, also fetch past uncompleted tasks so they roll over
-      if (isToday) {
-        const { data: od, error: odErr } = await supabase
-          .from("tasks")
-          .select(SELECT)
-          .lt("due_date", date)                       // strictly before today
-          .in("status", ["todo", "doing"])            // not done
-          .order("due_date")                          // oldest first
-          .order("priority");
-        if (odErr) throw odErr;
-        overdue = od ?? [];
-      }
-
-      // Merge: overdue first (older dates surface at the top), then today's tasks
+      // Merge without duplicates (overdue first so they appear at top of column)
       const seen = new Set<string>();
       const merged: Task[] = [];
-      for (const t of [...overdue, ...(dayTasks ?? [])]) {
-        if (!seen.has((t as Task).id)) {
-          seen.add((t as Task).id);
-          merged.push(t as unknown as Task);
+      for (const t of [...(overdue ?? []), ...(dayTasks ?? [])]) {
+        const task = t as unknown as Task;
+        if (!seen.has(task.id)) {
+          seen.add(task.id);
+          merged.push(task);
         }
       }
       return merged;
