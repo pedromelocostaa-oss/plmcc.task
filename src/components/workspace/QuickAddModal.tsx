@@ -74,10 +74,13 @@ export function QuickAddModal({ onClose }: Props) {
 
   // Purchase form
   const [purchaseName, setPurchaseName] = useState("");
-  const [purchaseUrl, setPurchaseUrl] = useState("");
+  const [purchaseLinks, setPurchaseLinks] = useState<{ id: string; url: string; label: string }[]>([
+    { id: crypto.randomUUID(), url: "", label: "" },
+  ]);
   const [purchasePrice, setPurchasePrice] = useState("");
   const [purchaseQty, setPurchaseQty] = useState(1);
   const [purchaseCategory, setPurchaseCategory] = useState("pessoal");
+  const [purchaseDesc, setPurchaseDesc] = useState("");
 
   const subtaskInputRef = useRef<HTMLInputElement>(null);
 
@@ -162,6 +165,16 @@ export function QuickAddModal({ onClose }: Props) {
     }
   }
 
+  function addPurchaseLink() {
+    setPurchaseLinks((ls) => [...ls, { id: crypto.randomUUID(), url: "", label: "" }]);
+  }
+  function removePurchaseLink(id: string) {
+    setPurchaseLinks((ls) => ls.length > 1 ? ls.filter((l) => l.id !== id) : ls);
+  }
+  function updatePurchaseLink(id: string, field: "url" | "label", value: string) {
+    setPurchaseLinks((ls) => ls.map((l) => l.id === id ? { ...l, [field]: value } : l));
+  }
+
   async function submitPurchase(e: React.FormEvent) {
     e.preventDefault();
     if (!purchaseName.trim()) return;
@@ -169,12 +182,24 @@ export function QuickAddModal({ onClose }: Props) {
       const priceCents = purchasePrice
         ? Math.round(parseFloat(purchasePrice.replace(",", ".")) * 100)
         : 0;
+
+      // Normalize & filter non-empty links
+      const validLinks = purchaseLinks
+        .filter((l) => l.url.trim())
+        .map((l) => {
+          let url = l.url.trim();
+          if (!url.startsWith("http://") && !url.startsWith("https://")) url = "https://" + url;
+          return { url, label: l.label.trim() };
+        });
+
       await createPurchase.mutateAsync({
         name: purchaseName.trim(),
-        url: purchaseUrl.trim() || null,
+        urls: validLinks,
+        url: validLinks[0]?.url ?? null,    // first link kept in legacy column
         price_cents: priceCents,
         qty: purchaseQty,
         category: purchaseCategory,
+        description: purchaseDesc.trim() || null,
       });
       toast.success("Adicionado à lista de compras!");
       onClose();
@@ -616,14 +641,71 @@ export function QuickAddModal({ onClose }: Props) {
                 />
               </div>
 
+              {/* Multi-link section */}
               <div>
-                <label style={labelStyle}>Link da loja (opcional)</label>
-                <input
-                  type="url"
-                  value={purchaseUrl}
-                  onChange={(e) => setPurchaseUrl(e.target.value)}
-                  placeholder="https://..."
-                  style={inputStyle}
+                <label style={labelStyle}>Links das lojas (opcional)</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+                  {purchaseLinks.map((link, idx) => (
+                    <div key={link.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+                        <input
+                          value={link.url}
+                          onChange={(e) => updatePurchaseLink(link.id, "url", e.target.value)}
+                          placeholder={`https://... (loja ${idx + 1})`}
+                          style={{ ...inputStyle, marginBottom: 0 }}
+                        />
+                        <input
+                          value={link.label}
+                          onChange={(e) => updatePurchaseLink(link.id, "label", e.target.value)}
+                          placeholder="Nome da loja (ex: Amazon, Shopee...)"
+                          style={{
+                            ...inputStyle,
+                            fontSize: 11,
+                            padding: "5px 10px",
+                            color: colors.textSecondary,
+                          }}
+                        />
+                      </div>
+                      {purchaseLinks.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removePurchaseLink(link.id)}
+                          style={{
+                            background: "none", border: "none",
+                            color: colors.textMuted, cursor: "pointer",
+                            padding: 4, flexShrink: 0,
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addPurchaseLink}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      background: "none", border: `1px dashed var(--hq-border)`,
+                      borderRadius: radius.md, color: colors.textMuted,
+                      cursor: "pointer", fontSize: 12, padding: "6px 12px",
+                      alignSelf: "flex-start",
+                      transition: `all 0.15s ${spring.gentle}`,
+                    }}
+                  >
+                    <Plus size={12} /> Adicionar outro link
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Descrição (opcional)</label>
+                <textarea
+                  value={purchaseDesc}
+                  onChange={(e) => setPurchaseDesc(e.target.value)}
+                  placeholder="Cor, tamanho, referência, observações..."
+                  rows={2}
+                  style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }}
                 />
               </div>
 
@@ -649,7 +731,7 @@ export function QuickAddModal({ onClose }: Props) {
                 <div style={{ width: 100 }}>
                   <label style={labelStyle}>Qtd.</label>
                   <div style={{
-                    display: "flex", alignItems: "center", gap: 0,
+                    display: "flex", alignItems: "center",
                     background: "var(--hq-inlay-bg)",
                     border: `1px solid var(--hq-border)`,
                     borderRadius: radius.md,

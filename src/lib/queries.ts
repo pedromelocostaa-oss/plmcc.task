@@ -943,18 +943,24 @@ export function useCreatePurchase() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: {
-      name: string; url?: string | null;
-      price_cents?: number; qty?: number;
+      name: string;
+      url?: string | null;
+      urls?: { url: string; label: string }[];
+      price_cents?: number;
+      qty?: number;
       category?: string;
+      description?: string | null;
     }) => {
       const { data: result, error } = await db
         .from("purchases")
         .insert({
           name: data.name,
           url: data.url ?? null,
+          urls: data.urls && data.urls.length > 0 ? data.urls : [],
           price_cents: data.price_cents ?? 0,
           qty: data.qty ?? 1,
           category: data.category ?? "pessoal",
+          description: data.description ?? null,
           bought: false,
         })
         .select()
