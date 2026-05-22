@@ -104,7 +104,7 @@ export function PurchasesView() {
           title="Nenhuma compra na lista"
           description="Adicione produtos que você quer comprar, com preço estimado e categoria."
           actionLabel="Adicionar produto"
-          onAction={openQuickAdd}
+          onAction={() => openQuickAdd("purchase")}
           kbd="⌘N"
         />
       ) : (
@@ -284,7 +284,7 @@ export function PurchasesView() {
               borderTop: `1px solid var(--hq-divider)`,
             }}>
               <button
-                onClick={openQuickAdd}
+                onClick={() => openQuickAdd("purchase")}
                 style={{
                   background: "none", border: "none",
                   color: colors.textMuted, cursor: "pointer",

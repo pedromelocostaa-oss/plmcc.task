@@ -48,7 +48,7 @@ export function NotesView() {
           title="Nenhuma anotação ainda"
           description="Crie sua primeira anotação para guardar ideias, contexto de projetos e referências."
           actionLabel="Criar anotação"
-          onAction={openQuickAdd}
+          onAction={() => openQuickAdd("note")}
           kbd="⌘N"
         />
       ) : (
@@ -59,7 +59,7 @@ export function NotesView() {
         }}>
           {/* Add note card */}
           <button
-            onClick={openQuickAdd}
+            onClick={() => openQuickAdd("note")}
             style={{
               background: "transparent",
               border: `1.5px dashed var(--hq-border)`,

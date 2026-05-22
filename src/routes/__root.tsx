@@ -44,16 +44,32 @@ function SearchProvider({ children }: { children: ReactNode }) {
 
 // ─── QuickAdd context (shared between Sidebar + MobileNav) ───────────────────
 
-type QuickAddCtx = { open: boolean; openQuickAdd: () => void; closeQuickAdd: () => void };
-const QuickAddContext = createContext<QuickAddCtx>({ open: false, openQuickAdd: () => {}, closeQuickAdd: () => {} });
+type QuickAddTab = "task" | "bookmark" | "note" | "purchase";
+type QuickAddCtx = {
+  open: boolean;
+  openQuickAdd: (tab?: QuickAddTab) => void;
+  closeQuickAdd: () => void;
+};
+const QuickAddContext = createContext<QuickAddCtx>({
+  open: false,
+  openQuickAdd: () => {},
+  closeQuickAdd: () => {},
+});
 export const useQuickAdd = () => useContext(QuickAddContext);
 
 function QuickAddProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [defaultTab, setDefaultTab] = useState<QuickAddTab>("task");
+
+  function openQuickAdd(tab?: QuickAddTab) {
+    if (tab) setDefaultTab(tab);
+    setOpen(true);
+  }
+
   return (
-    <QuickAddContext.Provider value={{ open, openQuickAdd: () => setOpen(true), closeQuickAdd: () => setOpen(false) }}>
+    <QuickAddContext.Provider value={{ open, openQuickAdd, closeQuickAdd: () => setOpen(false) }}>
       {children}
-      {open && <QuickAddModal onClose={() => setOpen(false)} />}
+      {open && <QuickAddModal defaultTab={defaultTab} onClose={() => setOpen(false)} />}
     </QuickAddContext.Provider>
   );
 }

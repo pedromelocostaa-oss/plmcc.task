@@ -15,6 +15,13 @@ const RIGHT_TABS: TabDef[] = [
   { to: "/purchases", icon: ShoppingCart, label: "Compras" },
 ];
 
+function quickAddTabForPath(path: string) {
+  if (path.startsWith("/notes"))     return "note"     as const;
+  if (path.startsWith("/bookmarks")) return "bookmark" as const;
+  if (path.startsWith("/purchases")) return "purchase" as const;
+  return "task" as const;
+}
+
 export function MobileNav() {
   const { openQuickAdd } = useQuickAdd();
   const { location } = useRouterState();
@@ -78,7 +85,7 @@ export function MobileNav() {
 
       {/* Central FAB */}
       <button
-        onClick={openQuickAdd}
+        onClick={() => openQuickAdd(quickAddTabForPath(currentPath))}
         aria-label="Adicionar"
         style={{
           flex: 0,

@@ -8,9 +8,9 @@ import {
 import { colors, spring, radius } from "@/lib/tokens";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
-interface Props { onClose: () => void; }
-
 type Tab = "task" | "bookmark" | "note" | "purchase";
+
+interface Props { onClose: () => void; defaultTab?: Tab; }
 
 const PRIORITIES = [
   { value: 1, label: "P1", color: "var(--hq-p1)", bg: "var(--hq-p1-bg)", desc: "Urgente" },
@@ -43,8 +43,8 @@ interface Subtask {
   title: string;
 }
 
-export function QuickAddModal({ onClose }: Props) {
-  const [tab, setTab] = useState<Tab>("task");
+export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
+  const [tab, setTab] = useState<Tab>(defaultTab);
   const { data: projects = [] } = useProjects();
   const createTask = useCreateTask();
   const createBookmark = useCreateBookmark();

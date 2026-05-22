@@ -29,6 +29,14 @@ export function Sidebar() {
   const { open: searchOpen, openSearch, closeSearch } = useSearch();
   const { openQuickAdd } = useQuickAdd();
   const { theme, toggle } = useTheme();
+  const { location } = useRouterState();
+
+  function quickAddTabForPath(path: string) {
+    if (path.startsWith("/notes"))     return "note"     as const;
+    if (path.startsWith("/bookmarks")) return "bookmark" as const;
+    if (path.startsWith("/purchases")) return "purchase" as const;
+    return "task" as const;
+  }
 
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem("sidebar-collapsed") === "true"; }
@@ -318,7 +326,7 @@ export function Sidebar() {
         }}>
           {/* Quick Add */}
           <button
-            onClick={openQuickAdd}
+            onClick={() => openQuickAdd(quickAddTabForPath(location.pathname))}
             title="Adicionar tarefa ou link"
             style={{
               display: "flex",
