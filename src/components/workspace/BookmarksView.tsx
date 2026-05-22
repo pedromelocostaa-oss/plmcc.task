@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { Search, Plus, ExternalLink, Trash2, Link as LinkIcon } from "lucide-react";
+import { Search, Plus, ExternalLink, Trash2, Link as LinkIcon, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
-import { useBookmarks, useCreateBookmark, useDeleteBookmark } from "@/lib/queries";
+import { useBookmarks, useCreateBookmark, useDeleteBookmark, useUpdateBookmark } from "@/lib/queries";
 import { hostname } from "@/lib/format";
-import { colors } from "@/lib/tokens";
+import { colors, spring, radius } from "@/lib/tokens";
 import type { Bookmark } from "@/lib/types";
 
 export function BookmarksView() {
@@ -28,7 +28,9 @@ export function BookmarksView() {
   async function handleAdd() {
     if (!url.trim()) return;
     try {
-      await createBookmark.mutateAsync({ title: title.trim(), url: url.trim(), tag: tag.trim() });
+      let normalUrl = url.trim();
+      if (!normalUrl.startsWith("http://") && !normalUrl.startsWith("https://")) normalUrl = "https://" + normalUrl;
+      await createBookmark.mutateAsync({ title: title.trim(), url: normalUrl, tag: tag.trim() });
       toast.success("Link salvo");
       setTitle(""); setTag(""); setUrl(""); setAdding(false);
     } catch {
@@ -105,7 +107,11 @@ export function BookmarksView() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 8 }}>
                 {items.map((b) => (
-                  <BookmarkCard key={b.id} bookmark={b} onDelete={() => deleteBookmark.mutate(b.id)} />
+                  <BookmarkCard
+                    key={b.id}
+                    bookmark={b}
+                    onDelete={() => deleteBookmark.mutate(b.id)}
+                  />
                 ))}
               </div>
             </div>
@@ -117,7 +123,93 @@ export function BookmarksView() {
 }
 
 function BookmarkCard({ bookmark: b, onDelete }: { bookmark: Bookmark; onDelete: () => void }) {
+  const updateBookmark = useUpdateBookmark();
   const [hov, setHov] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(b.title);
+  const [editUrl, setEditUrl] = useState(b.url);
+  const [editTag, setEditTag] = useState(b.tag ?? "");
+
+  function startEdit() {
+    setEditTitle(b.title);
+    setEditUrl(b.url);
+    setEditTag(b.tag ?? "");
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    let url = editUrl.trim();
+    if (!url) return;
+    if (!url.startsWith("http://") && !url.startsWith("https://")) url = "https://" + url;
+    try {
+      await updateBookmark.mutateAsync({
+        id: b.id,
+        data: { title: editTitle.trim(), url, tag: editTag.trim() },
+      });
+      toast.success("Link atualizado");
+      setEditing(false);
+    } catch (err) {
+      toast.error((err as { message?: string })?.message ?? "Erro ao atualizar");
+    }
+  }
+
+  if (editing) {
+    return (
+      <div style={{
+        background: "var(--hq-card-bg)",
+        border: `1.5px solid var(--hq-accent)`,
+        borderRadius: radius.md,
+        padding: "10px 12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+      }}>
+        <input
+          autoFocus
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+          placeholder="Título"
+          style={cardInputStyle}
+        />
+        <input
+          value={editUrl}
+          onChange={(e) => setEditUrl(e.target.value)}
+          placeholder="https://..."
+          style={cardInputStyle}
+        />
+        <input
+          value={editTag}
+          onChange={(e) => setEditTag(e.target.value)}
+          placeholder="Tag"
+          style={cardInputStyle}
+        />
+        <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+          <button
+            onClick={saveEdit}
+            disabled={updateBookmark.isPending}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "4px 10px", background: "var(--hq-accent)", color: "#fff",
+              border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600,
+            }}
+          >
+            <Check size={12} /> Salvar
+          </button>
+          <button
+            onClick={() => setEditing(false)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              padding: "4px 10px", background: "transparent", color: colors.textSecondary,
+              border: `1px solid ${colors.border}`, borderRadius: 6, cursor: "pointer", fontSize: 12,
+            }}
+          >
+            <X size={12} /> Cancelar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       onMouseEnter={() => setHov(true)}
@@ -140,10 +232,13 @@ function BookmarkCard({ bookmark: b, onDelete }: { bookmark: Bookmark; onDelete:
       </div>
       {hov && (
         <>
-          <a href={b.url} target="_blank" rel="noreferrer" style={iconLink} title="Abrir">
+          <a href={b.url} target="_blank" rel="noreferrer" style={iconBtn} title="Abrir">
             <ExternalLink size={14} />
           </a>
-          <button onClick={onDelete} style={{ ...iconLink, color: colors.danger }} title="Excluir">
+          <button onClick={startEdit} style={iconBtn} title="Editar">
+            <Pencil size={13} />
+          </button>
+          <button onClick={onDelete} style={{ ...iconBtn, color: colors.danger }} title="Excluir">
             <Trash2 size={14} />
           </button>
         </>
@@ -157,6 +252,17 @@ const inputStyle: React.CSSProperties = {
   padding: "8px 10px", borderRadius: 6, fontSize: 13,
 };
 
+const cardInputStyle: React.CSSProperties = {
+  width: "100%",
+  background: "var(--hq-inlay-bg)",
+  border: `1px solid var(--hq-border)`,
+  color: colors.text,
+  padding: "6px 8px",
+  borderRadius: 6,
+  fontSize: 12,
+  boxSizing: "border-box",
+};
+
 const accentBtn: React.CSSProperties = {
   background: colors.accent, color: "#0d1117", border: "none",
   padding: "7px 12px", borderRadius: 6, cursor: "pointer",
@@ -168,7 +274,7 @@ const ghostBtn: React.CSSProperties = {
   padding: "7px 12px", borderRadius: 6, cursor: "pointer", fontSize: 12,
 };
 
-const iconLink: React.CSSProperties = {
+const iconBtn: React.CSSProperties = {
   background: "transparent", border: "none", color: colors.textSecondary,
   cursor: "pointer", padding: 4, display: "inline-flex",
 };

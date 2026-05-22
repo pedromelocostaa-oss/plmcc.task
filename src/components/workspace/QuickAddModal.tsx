@@ -203,8 +203,9 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
       });
       toast.success("Adicionado à lista de compras!");
       onClose();
-    } catch {
-      toast.error("Erro ao adicionar compra");
+    } catch (err) {
+      const msg = (err as { message?: string })?.message ?? "Erro ao adicionar compra";
+      toast.error(msg);
     }
   }
 

@@ -659,6 +659,17 @@ export function useCreateBookmark() {
   });
 }
 
+export function useUpdateBookmark() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { title?: string; url?: string; tag?: string } }) => {
+      const { error } = await supabase.from("bookmarks").update(data).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["bookmarks"] }); },
+  });
+}
+
 export function useDeleteBookmark() {
   const qc = useQueryClient();
   return useMutation({
@@ -967,6 +978,28 @@ export function useCreatePurchase() {
         .single();
       if (error) throw error;
       return result;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["purchases"] }); },
+  });
+}
+
+export function useUpdatePurchase() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: {
+      id: string;
+      data: {
+        name?: string;
+        url?: string | null;
+        urls?: { url: string; label: string }[];
+        price_cents?: number;
+        qty?: number;
+        category?: string;
+        description?: string | null;
+      };
+    }) => {
+      const { error } = await db.from("purchases").update(data).eq("id", id);
+      if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["purchases"] }); },
   });
