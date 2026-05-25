@@ -2,12 +2,15 @@ import { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useProjects, useTasksForDate, useSetTaskStatus } from "@/lib/queries";
+import { useProjects, useTasksForDate, useSetTaskStatus, useCreateTask } from "@/lib/queries";
 import type { Task } from "@/lib/types";
+import { tagColor } from "@/lib/types";
 import { colors, spring, radius } from "@/lib/tokens";
 import { DayCalendar, fetchCalendarEvents } from "@/components/workspace/DayCalendar";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useResizable } from "@/hooks/use-resizable";
 import type { CalendarEvent } from "@/lib/calendar-api";
+import { Route } from "@/routes/index";
 
 // ── date helpers ─────────────────────────────────────────────────────────────
 
@@ -45,6 +48,49 @@ function getWeekDays(referenceDate: Date): Date[] {
     day.setDate(monday.getDate() + i);
     return day;
   });
+}
+
+// ── greeting ─────────────────────────────────────────────────────────────────
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 6) return "Boa madrugada";
+  if (h < 12) return "Bom dia";
+  if (h < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+// ── ProgressRing ──────────────────────────────────────────────────────────────
+
+function ProgressRing({ value, size = 52 }: { value: number; size?: number }) {
+  const stroke = 4;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - Math.max(0, Math.min(1, value)));
+  const done = value >= 1;
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+        <circle cx={size/2} cy={size/2} r={r} stroke="var(--hq-border)" strokeWidth={stroke} fill="none" />
+        <circle cx={size/2} cy={size/2} r={r}
+          stroke={done ? "var(--hq-success)" : "var(--hq-accent)"}
+          strokeWidth={stroke} fill="none"
+          strokeDasharray={circ} strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 480ms cubic-bezier(0.2,0.85,0.25,1), stroke 240ms" }}
+        />
+      </svg>
+      <span style={{
+        position: "absolute", inset: 0, display: "grid", placeItems: "center",
+        fontSize: size <= 44 ? 11 : 12, fontWeight: 700,
+        fontFamily: '"SF Mono", ui-monospace, monospace',
+        color: done ? "var(--hq-success)" : "var(--hq-text)",
+        fontVariantNumeric: "tabular-nums",
+      }}>
+        {Math.round(Math.max(0, Math.min(1, value)) * 100)}%
+      </span>
+    </div>
+  );
 }
 
 const DAY_ABBR = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -173,6 +219,57 @@ const COLUMNS: { status: Task["status"]; label: string; accent: string; accentBg
   { status: "done",  label: "Concluído", accent: colors.success,       accentBg: "rgba(48,209,88,0.12)" },
 ];
 
+// ── InlineAdd ─────────────────────────────────────────────────────────────────
+
+function InlineAdd({ status, columnAccent, selectedDate }: { status: string; columnAccent: string; selectedDate: string }) {
+  const [focused, setFocused] = useState(false);
+  const [val, setVal] = useState("");
+  const { data: projects = [] } = useProjects();
+  const createTask = useCreateTask();
+
+  const defaultProject = useMemo(() => {
+    const blis = projects.find((p: any) => p.name.toLowerCase().includes("blis"));
+    return (blis ?? projects[0])?.id;
+  }, [projects]);
+
+  function submit() {
+    if (!val.trim() || !defaultProject) return;
+    createTask.mutate({ project_id: defaultProject, title: val.trim(), status: status as any, priority: 2, due_date: selectedDate });
+    setVal("");
+    setFocused(false);
+  }
+
+  return (
+    <div style={{
+      margin: "4px 0 8px",
+      borderRadius: 8,
+      border: `1px dashed ${focused ? columnAccent : "var(--hq-border)"}`,
+      background: focused ? "var(--hq-bg-elevated)" : "transparent",
+      transition: "all 120ms",
+      overflow: "hidden",
+    }}>
+      <input
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => { if (!val.trim()) setFocused(false); }}
+        onKeyDown={(e) => { if (e.key === "Enter") submit(); if (e.key === "Escape") { setVal(""); setFocused(false); } }}
+        placeholder="+ Adicionar tarefa"
+        style={{
+          width: "100%", border: "none", background: "transparent",
+          padding: "7px 10px", fontSize: 12.5,
+          color: "var(--hq-text)", outline: "none", boxSizing: "border-box",
+        }}
+      />
+      {focused && val.trim() && (
+        <div style={{ fontSize: 10, color: "var(--hq-text-muted)", padding: "0 10px 5px" }}>
+          ↵ criar · Esc cancelar
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── KanbanCard ────────────────────────────────────────────────────────────────
 
 function KanbanCard({
@@ -189,6 +286,7 @@ function KanbanCard({
   isDragging?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [cardHovered, setCardHovered] = useState(false);
   const project = task.project as { name: string; color: string } | undefined;
   const tags = task.task_tags ?? [];
   const subtasks = task.subtasks ?? [];
@@ -216,7 +314,10 @@ function KanbanCard({
         onDragStart?.();
       }}
       onDragEnd={onDragEnd}
+      onMouseEnter={() => setCardHovered(true)}
+      onMouseLeave={() => setCardHovered(false)}
       style={{
+        position: "relative",
         background: expanded ? colors.surfaceRaised : colors.cardBg,
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
@@ -236,6 +337,24 @@ function KanbanCard({
       }}
       onClick={() => hasDetails && setExpanded((v) => !v)}
     >
+      {/* Quick complete button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onMove(task.status === "done" ? "todo" : "done"); }}
+        style={{
+          position: "absolute", top: 8, right: 8,
+          width: 20, height: 20, borderRadius: "50%",
+          border: `1.5px solid ${task.status === "done" ? "var(--hq-success)" : "var(--hq-border)"}`,
+          background: task.status === "done" ? "var(--hq-success)" : "transparent",
+          cursor: "pointer", padding: 0,
+          display: "grid", placeItems: "center",
+          opacity: cardHovered || task.status === "done" ? 1 : 0,
+          transition: "opacity 120ms",
+          zIndex: 2,
+        }}
+      >
+        {task.status === "done" && <Check size={11} color="#fff" strokeWidth={3} />}
+      </button>
+
       {/* Card body */}
       <div style={{ padding: "10px 12px" }}>
         {/* Project + priority row */}
@@ -253,6 +372,7 @@ function KanbanCard({
             background: `${p.color}15`,
             padding: "1px 5px", borderRadius: 4,
             flexShrink: 0, letterSpacing: "0.04em",
+            marginRight: 24, // space for quick-complete button
           }}>{p.label}</span>
         </div>
 
@@ -288,12 +408,15 @@ function KanbanCard({
               <AlignLeft size={9} />
             </span>
           )}
-          {tags.slice(0, 2).map((t) => (
-            <span key={t.id} style={{
-              fontSize: 9, padding: "1px 5px", borderRadius: "99px",
-              background: "rgba(191,90,242,0.15)", color: "#BF5AF2",
-            }}>{t.tag}</span>
-          ))}
+          {tags.slice(0, 2).map((t) => {
+            const tc = tagColor(t.tag);
+            return (
+              <span key={t.id} style={{
+                fontSize: 9, padding: "1px 5px", borderRadius: "99px",
+                background: `${tc}22`, color: tc,
+              }}>{t.tag}</span>
+            );
+          })}
           {hasDetails && (
             <span style={{ marginLeft: "auto", color: expanded ? p.color : colors.textMuted, transition: `color 0.2s` }}>
               {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -416,17 +539,20 @@ function KanbanCard({
                 </span>
               </div>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {tags.map((t) => (
-                  <span key={t.id} style={{
-                    fontSize: 11, padding: "3px 8px", borderRadius: "99px",
-                    background: "rgba(191,90,242,0.15)",
-                    border: "1px solid rgba(191,90,242,0.25)",
-                    color: "#BF5AF2",
-                    display: "flex", alignItems: "center", gap: 4,
-                  }}>
-                    <Tag size={8} />{t.tag}
-                  </span>
-                ))}
+                {tags.map((t) => {
+                  const tc = tagColor(t.tag);
+                  return (
+                    <span key={t.id} style={{
+                      fontSize: 11, padding: "3px 8px", borderRadius: "99px",
+                      background: `${tc}22`,
+                      border: `1px solid ${tc}40`,
+                      color: tc,
+                      display: "flex", alignItems: "center", gap: 4,
+                    }}>
+                      <Tag size={8} />{t.tag}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -468,7 +594,7 @@ function KanbanCard({
 function KanbanColumn({
   config, tasks, onMove, draggedTaskId,
   onDragOver, onDrop, onDragLeave, isDragOver,
-  onCardDragStart, onCardDragEnd,
+  onCardDragStart, onCardDragEnd, selectedDate,
 }: {
   config: typeof COLUMNS[number];
   tasks: Task[];
@@ -480,6 +606,7 @@ function KanbanColumn({
   isDragOver: boolean;
   onCardDragStart: (id: string) => void;
   onCardDragEnd: () => void;
+  selectedDate: string;
 }) {
   return (
     <div
@@ -526,7 +653,7 @@ function KanbanColumn({
       </div>
 
       {/* Cards */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px 12px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px 4px" }}>
         {tasks.length === 0 && (
           <div style={{
             textAlign: "center", padding: "24px 8px",
@@ -546,6 +673,9 @@ function KanbanColumn({
             onDragEnd={onCardDragEnd}
           />
         ))}
+
+        {/* Inline add at bottom of column */}
+        <InlineAdd status={config.status} columnAccent={config.accent} selectedDate={selectedDate} />
       </div>
     </div>
   );
@@ -554,8 +684,15 @@ function KanbanColumn({
 // ── HomeView ──────────────────────────────────────────────────────────────────
 
 export function HomeView() {
+  const { date: searchDate } = Route.useSearch();
   const { data: projects = [] } = useProjects();
-  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    if (searchDate) {
+      const d = new Date(searchDate + "T12:00:00");
+      if (!isNaN(d.getTime())) return d;
+    }
+    return new Date();
+  });
   const [projectFilter, setProjectFilter] = useState<string | null>(null);
   const [sortByPriority, setSortByPriority] = useState(false);
   const [mobileColumn, setMobileColumn] = useState<Task["status"]>("todo");
@@ -566,6 +703,10 @@ export function HomeView() {
   const [dragOverColumn, setDragOverColumn] = useState<Task["status"] | null>(null);
   const isMobile = useIsMobile();
   const setStatus = useSetTaskStatus();
+
+  const { width: agendaWidth, startResize, resetWidth } = useResizable({
+    min: 280, max: 700, defaultValue: 340, storageKey: "hq-agenda-width",
+  });
 
   const selectedIso = toIso(selectedDate);
   const isToday = isTodayDate(selectedDate);
@@ -589,6 +730,7 @@ export function HomeView() {
 
   const totalCount = allTasks.length;
   const doneCount = allTasks.filter((t) => t.status === "done").length;
+  const progressValue = totalCount > 0 ? doneCount / totalCount : 0;
 
   function handleMove(id: string, status: Task["status"]) {
     const task = allTasks.find((t) => t.id === id);
@@ -613,7 +755,7 @@ export function HomeView() {
   // Calendar panel (shared between mobile and desktop)
   const calendarPanel = (
     <div style={{
-      width: isMobile ? "100%" : calendarExpanded ? "100%" : 340,
+      width: isMobile ? "100%" : calendarExpanded ? "100%" : agendaWidth,
       flexShrink: 0,
       borderLeft: isMobile ? "none" : `1px solid ${colors.separator}`,
       display: "flex",
@@ -715,17 +857,24 @@ export function HomeView() {
           justifyContent: "space-between", marginBottom: 10,
           gap: 8,
         }}>
-          <div style={{ minWidth: 0 }}>
-            <h1 style={{
-              fontSize: isMobile ? 20 : 22,
-              fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 1,
-            }}>Meu dia</h1>
-            <p style={{ color: colors.textSecondary, fontSize: 11, margin: 0 }}>
-              {isLoading ? "Carregando..." :
-                totalCount === 0 ? "Nenhuma tarefa neste dia" :
-                `${doneCount}/${totalCount} concluída${doneCount !== 1 ? "s" : ""}`
-              }
-            </p>
+          <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 12 }}>
+            {!isMobile && totalCount > 0 && (
+              <ProgressRing value={progressValue} size={48} />
+            )}
+            <div>
+              <h1 style={{
+                fontSize: isMobile ? 20 : 22,
+                fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 1,
+              }}>
+                {isToday ? greeting() : "Meu dia"}
+              </h1>
+              <p style={{ color: colors.textSecondary, fontSize: 11, margin: 0 }}>
+                {isLoading ? "Carregando..." :
+                  totalCount === 0 ? "Nenhuma tarefa neste dia" :
+                  `${doneCount}/${totalCount} concluída${doneCount !== 1 ? "s" : ""}`
+                }
+              </p>
+            </div>
           </div>
 
           {/* Date navigator */}
@@ -929,9 +1078,22 @@ export function HomeView() {
                     onDragLeave={() => setDragOverColumn(null)}
                     onCardDragStart={(id) => setDraggedTaskId(id)}
                     onCardDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); }}
+                    selectedDate={selectedIso}
                   />
                 ))
               )}
+            </div>
+          )}
+
+          {/* Resize handle — between kanban and calendar, desktop only, not expanded */}
+          {!calendarExpanded && (
+            <div
+              onMouseDown={startResize}
+              onDoubleClick={resetWidth}
+              title="Arraste · 2× pra resetar"
+              style={{ width: 7, flexShrink: 0, cursor: "col-resize", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent" }}
+            >
+              <div style={{ width: 3, height: 36, borderRadius: 2, background: "rgba(120,120,128,0.20)" }} />
             </div>
           )}
 

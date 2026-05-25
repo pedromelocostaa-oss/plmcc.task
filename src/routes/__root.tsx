@@ -13,6 +13,7 @@ import { MobileNav } from "@/components/layout/MobileNav";
 import { QuickAddModal } from "@/components/workspace/QuickAddModal";
 import { ThemeProvider, useTheme } from "@/hooks/use-theme";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useGlobalHotkeys } from "@/hooks/use-hotkeys";
 
 // ─── Search context ───────────────────────────────────────────────────────────
 
@@ -117,6 +118,17 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function HotkeyBridge({ children }: { children: React.ReactNode }) {
+  const { openSearch, closeSearch } = useSearch();
+  const { openQuickAdd, closeQuickAdd } = useQuickAdd();
+  useGlobalHotkeys({
+    onSearch: openSearch,
+    onQuickAdd: () => openQuickAdd(),
+    onCloseOverlays: () => { closeSearch(); closeQuickAdd(); },
+  });
+  return <>{children}</>;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
@@ -124,7 +136,9 @@ function RootComponent() {
       <ThemeProvider>
         <SearchProvider>
           <QuickAddProvider>
-            <AppShell />
+            <HotkeyBridge>
+              <AppShell />
+            </HotkeyBridge>
           </QuickAddProvider>
         </SearchProvider>
       </ThemeProvider>

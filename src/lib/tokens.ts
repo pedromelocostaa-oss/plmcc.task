@@ -93,6 +93,7 @@ export const NAV_TINTS = {
   purchases: '#FF6B35',
   bookmarks: '#FF3B30',
   search:    '#8E8E93',
+  upcoming:  '#5856D6',
 } as const;
 
 // shade helper — darken/lighten hex by percentage

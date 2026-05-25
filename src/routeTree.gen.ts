@@ -14,9 +14,15 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BookmarksRouteImport } from './routes/bookmarks'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as PurchasesRouteImport } from './routes/purchases'
+import { Route as UpcomingRouteImport } from './routes/upcoming'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
 
+const UpcomingRoute = UpcomingRouteImport.update({
+  id: '/upcoming',
+  path: '/upcoming',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/notes': typeof NotesRoute
   '/purchases': typeof PurchasesRoute
+  '/upcoming': typeof UpcomingRoute
   '/projects/$id': typeof ProjectsIdRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/notes': typeof NotesRoute
   '/purchases': typeof PurchasesRoute
+  '/upcoming': typeof UpcomingRoute
   '/projects/$id': typeof ProjectsIdRoute
 }
 export interface FileRoutesById {
@@ -79,13 +87,14 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/notes': typeof NotesRoute
   '/purchases': typeof PurchasesRoute
+  '/upcoming': typeof UpcomingRoute
   '/projects/$id': typeof ProjectsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/bookmarks' | '/dashboard' | '/tasks' | '/notes' | '/purchases' | '/projects/$id'
+  fullPaths: '/' | '/bookmarks' | '/dashboard' | '/tasks' | '/notes' | '/purchases' | '/upcoming' | '/projects/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/bookmarks' | '/dashboard' | '/tasks' | '/notes' | '/purchases' | '/projects/$id'
+  to: '/' | '/bookmarks' | '/dashboard' | '/tasks' | '/notes' | '/purchases' | '/upcoming' | '/projects/$id'
   id:
     | '__root__'
     | '/'
@@ -94,6 +103,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/notes'
     | '/purchases'
+    | '/upcoming'
     | '/projects/$id'
   fileRoutesById: FileRoutesById
 }
@@ -104,6 +114,7 @@ export interface RootRouteChildren {
   TasksRoute: typeof TasksRoute
   NotesRoute: typeof NotesRoute
   PurchasesRoute: typeof PurchasesRoute
+  UpcomingRoute: typeof UpcomingRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
 }
 
@@ -144,6 +155,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PurchasesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/upcoming': {
+      id: '/upcoming'
+      path: '/upcoming'
+      fullPath: '/upcoming'
+      preLoaderRoute: typeof UpcomingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -168,6 +186,7 @@ const rootRouteChildren: RootRouteChildren = {
   TasksRoute: TasksRoute,
   NotesRoute: NotesRoute,
   PurchasesRoute: PurchasesRoute,
+  UpcomingRoute: UpcomingRoute,
   ProjectsIdRoute: ProjectsIdRoute,
 }
 export const routeTree = rootRouteImport
