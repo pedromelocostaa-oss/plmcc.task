@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PurchaseRowSkeleton } from "@/components/ui/skeleton-card";
 import {
   ShoppingCart, Trash2, ExternalLink, Pencil, X, Check,
   Plus, Minus, Tag, Calendar, Package, FileText, Link as LinkIcon,
@@ -132,7 +133,9 @@ export function PurchasesView() {
       )}
 
       {isLoading ? (
-        <div style={{ color: colors.textMuted, fontSize: 13 }}>Carregando...</div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {[1, 2, 3, 4].map((i) => <PurchaseRowSkeleton key={i} />)}
+        </div>
       ) : typedPurchases.length === 0 ? (
         <EmptyState
           icon={<ShoppingCart size={24} />}

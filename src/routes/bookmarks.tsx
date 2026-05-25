@@ -1,4 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BookmarksView } from "@/components/workspace/BookmarksView";
+import { lazy } from "react";
+
+const BookmarksView = lazy(() =>
+  import("@/components/workspace/BookmarksView").then((m) => ({ default: m.BookmarksView }))
+);
 
 export const Route = createFileRoute("/bookmarks")({ component: BookmarksView });

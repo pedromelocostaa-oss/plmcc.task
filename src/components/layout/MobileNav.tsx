@@ -42,7 +42,7 @@ export function MobileNav() {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-around",
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        paddingBottom: "max(8px, var(--hq-safe-bottom))",
         paddingLeft: "env(safe-area-inset-left, 0px)",
         paddingRight: "env(safe-area-inset-right, 0px)",
         height: "calc(56px + env(safe-area-inset-bottom, 0px))",

@@ -1,9 +1,14 @@
 import { useState, useMemo } from "react";
+import { TaskCardSkeleton } from "@/components/ui/skeleton-card";
+import { useLongPress } from "@/hooks/use-long-press";
+import { SwipeableCard } from "@/components/workspace/SwipeableCard";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { haptics } from "@/lib/haptics";
 import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { showUndoToast } from "@/components/ui/undo-toast";
-import { useProjects, useTasksForDate, useSetTaskStatus, useCreateTask } from "@/lib/queries";
+import { useProjects, useTasksForDate, useSetTaskStatus, useCreateTask, useDeleteTask } from "@/lib/queries";
 import type { Task } from "@/lib/types";
 import { tagColor } from "@/lib/types";
 import { TaskDetailPanel } from "@/components/workspace/TaskDetailPanel";
@@ -281,6 +286,7 @@ function KanbanCard({
   onDragStart,
   onDragEnd,
   isDragging,
+  isMobile: isMobileProp,
 }: {
   task: Task;
   onMove: (status: Task["status"]) => void;
@@ -288,9 +294,15 @@ function KanbanCard({
   onDragStart?: () => void;
   onDragEnd?: () => void;
   isDragging?: boolean;
+  isMobile?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [cardHovered, setCardHovered] = useState(false);
+
+  const longPressHandlers = useLongPress({
+    threshold: 450,
+    onLongPress: () => { if (onOpenDetail) onOpenDetail(); },
+  });
   const project = task.project as { name: string; color: string } | undefined;
   const tags = task.task_tags ?? [];
   const subtasks = task.subtasks ?? [];
@@ -311,7 +323,7 @@ function KanbanCard({
 
   return (
     <div
-      draggable
+      draggable={!isMobileProp}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", task.id);
@@ -320,6 +332,7 @@ function KanbanCard({
       onDragEnd={onDragEnd}
       onMouseEnter={() => setCardHovered(true)}
       onMouseLeave={() => setCardHovered(false)}
+      {...(isMobileProp && onOpenDetail ? longPressHandlers : {})}
       style={{
         position: "relative",
         background: expanded ? colors.surfaceRaised : colors.cardBg,
@@ -343,7 +356,7 @@ function KanbanCard({
     >
       {/* Quick complete button */}
       <button
-        onClick={(e) => { e.stopPropagation(); onMove(task.status === "done" ? "todo" : "done"); }}
+        onClick={(e) => { e.stopPropagation(); haptics.success(); onMove(task.status === "done" ? "todo" : "done"); }}
         style={{
           position: "absolute", top: 8, right: 8,
           width: 20, height: 20, borderRadius: "50%",
@@ -725,6 +738,8 @@ export function HomeView() {
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const setStatus = useSetTaskStatus();
+  const deleteTask = useDeleteTask();
+  const qc = useQueryClient();
 
   const { width: agendaWidth, startResize, resetWidth } = useResizable({
     min: 280, max: 700, defaultValue: 340, storageKey: "hq-agenda-width",
@@ -1055,28 +1070,50 @@ export function HomeView() {
             {calendarPanel}
           </div>
         ) : (
-          <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "12px 12px 80px" }}>
-            {isLoading ? (
-              <div style={{ background: colors.surface, borderRadius: radius.lg, height: 200, opacity: 0.4 }} />
-            ) : (
-              (() => {
-                const col = columns.find((c) => c.status === mobileColumn);
-                if (!col) return null;
-                return (
-                  <>
-                    {col.tasks.length === 0 && (
-                      <div style={{ textAlign: "center", padding: "40px 8px", color: colors.textMuted, fontSize: 13 }}>
-                        {col.status === "done" ? "Nenhuma tarefa concluída" : "Vazio"}
-                      </div>
-                    )}
-                    {col.tasks.map((t) => (
-                      <KanbanCard key={t.id} task={t} onMove={(status) => handleMove(t.id, status)} onOpenDetail={() => setDetailTaskId(t.id)} />
-                    ))}
-                  </>
-                );
-              })()
-            )}
-          </div>
+          <PullToRefresh onRefresh={() => qc.invalidateQueries({ queryKey: ["tasks"] })}>
+            <div style={{ padding: "12px 12px 80px" }}>
+              {isLoading ? (
+                <>
+                  {Array.from({ length: 4 }, (_, i) => <TaskCardSkeleton key={i} />)}
+                </>
+              ) : (
+                (() => {
+                  const col = columns.find((c) => c.status === mobileColumn);
+                  if (!col) return null;
+                  return (
+                    <>
+                      {col.tasks.length === 0 && (
+                        <div style={{ textAlign: "center", padding: "40px 8px", color: colors.textMuted, fontSize: 13 }}>
+                          {col.status === "done" ? "Nenhuma tarefa concluída" : "Vazio"}
+                        </div>
+                      )}
+                      {col.tasks.map((t) => (
+                        <SwipeableCard
+                          key={t.id}
+                          onSwipeRight={() => handleMove(t.id, "done")}
+                          onSwipeLeft={() => {
+                            deleteTask.mutate(
+                              { id: t.id, projectId: t.project_id },
+                              {
+                                onSuccess: () => showUndoToast({
+                                  title: "Tarefa deletada",
+                                  description: t.title.length > 45 ? t.title.slice(0, 45) + "…" : t.title,
+                                  iconBg: "rgba(255,69,58,0.4)",
+                                  undo: () => {},
+                                }),
+                              }
+                            );
+                          }}
+                        >
+                          <KanbanCard task={t} onMove={(status) => handleMove(t.id, status)} onOpenDetail={() => setDetailTaskId(t.id)} isMobile={isMobile} />
+                        </SwipeableCard>
+                      ))}
+                    </>
+                  );
+                })()
+              )}
+            </div>
+          </PullToRefresh>
         )
       ) : (
         /* ── DESKTOP: kanban + calendar panel side by side ── */
@@ -1095,8 +1132,11 @@ export function HomeView() {
                 Array.from({ length: 3 }, (_, i) => (
                   <div key={i} style={{
                     flex: 1, background: colors.surface, borderRadius: radius.lg,
-                    border: `1px solid ${colors.border}`, opacity: 0.4,
-                  }} />
+                    border: `1px solid ${colors.border}`,
+                    padding: "10px 8px",
+                  }}>
+                    {Array.from({ length: 3 }, (_, j) => <TaskCardSkeleton key={j} />)}
+                  </div>
                 ))
               ) : (
                 columns.map((col) => (

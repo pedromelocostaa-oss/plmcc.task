@@ -1,4 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { NotesView } from "@/components/workspace/NotesView";
+import { lazy } from "react";
+
+const NotesView = lazy(() =>
+  import("@/components/workspace/NotesView").then((m) => ({ default: m.NotesView }))
+);
 
 export const Route = createFileRoute("/notes")({ component: NotesView });

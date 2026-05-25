@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { BookmarkCardSkeleton } from "@/components/ui/skeleton-card";
 import { Search, Plus, ExternalLink, Trash2, Link as LinkIcon, Pencil, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useBookmarks, useCreateBookmark, useDeleteBookmark, useUpdateBookmark } from "@/lib/queries";
@@ -84,7 +85,7 @@ export function BookmarksView() {
       {isLoading ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {[1, 2, 3].map((i) => (
-            <div key={i} style={{ height: 60, background: colors.surface, borderRadius: 8 }} />
+            <BookmarkCardSkeleton key={i} />
           ))}
         </div>
       ) : grouped.length === 0 ? (

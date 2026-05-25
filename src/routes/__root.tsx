@@ -7,11 +7,15 @@ import {
 } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
 import { Toaster } from "sonner";
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, Suspense, type ReactNode } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { QuickAddModal } from "@/components/workspace/QuickAddModal";
 import { ThemeProvider, useTheme } from "@/hooks/use-theme";
+import { useThemeColor } from "@/hooks/use-theme-color";
+import { useServiceWorkerUpdate } from "@/hooks/use-sw-update";
+import { useOnline } from "@/hooks/use-online";
+import { InstallPrompt } from "@/components/ui/install-prompt";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useGlobalHotkeys } from "@/hooks/use-hotkeys";
 
@@ -84,7 +88,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Pedro's HQ" },
       { name: "description", content: "Command Center pessoal — projetos, tarefas, links e notas." },
-      { name: "theme-color", content: "#000000" },
+      { name: "theme-color", content: "#1A1A1A", media: "(prefers-color-scheme: dark)" },
+      { name: "theme-color", content: "#F2F2F7", media: "(prefers-color-scheme: light)" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "Pedro's HQ" },
@@ -93,6 +98,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.json" },
+      { rel: "icon", href: "/favicon.ico", sizes: "any" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/icons/apple-touch-icon.png" },
+      { rel: "apple-touch-startup-image", media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)", href: "/splash/splash-390.png" },
+      { rel: "apple-touch-startup-image", media: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)", href: "/splash/splash-414.png" },
+      { rel: "apple-touch-startup-image", media: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)", href: "/splash/splash-375.png" },
+      { rel: "apple-touch-startup-image", media: "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)", href: "/splash/splash-428.png" },
+      { rel: "apple-touch-startup-image", media: "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)", href: "/splash/splash-430.png" },
+      { rel: "apple-touch-startup-image", media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)", href: "/splash/splash-393.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -103,8 +116,48 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     </div>
   ),
   errorComponent: ({ error }) => (
-    <div style={{ padding: 40, color: "var(--hq-text)", background: "var(--hq-bg)", height: "100vh" }}>
-      <pre style={{ color: "var(--hq-danger)" }}>{error.message}</pre>
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      height: "100dvh", background: "var(--hq-bg)", color: "var(--hq-text)",
+      padding: 32, textAlign: "center", gap: 16,
+    }}>
+      <div style={{
+        width: 56, height: 56, borderRadius: 16,
+        background: "var(--hq-p1-bg)", display: "grid", placeItems: "center",
+        fontSize: 28,
+      }}>⚠</div>
+      <div>
+        <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700, letterSpacing: "-0.03em" }}>
+          Algo correu mal
+        </h2>
+        <p style={{ margin: 0, color: "var(--hq-text-secondary)", fontSize: 14 }}>
+          Ocorreu um erro inesperado. Tente recarregar a página.
+        </p>
+      </div>
+      <button
+        onClick={() => window.location.reload()}
+        style={{
+          background: "var(--hq-accent)", color: "#fff",
+          border: "none", padding: "10px 24px", borderRadius: 10,
+          fontSize: 14, fontWeight: 600, cursor: "pointer",
+        }}
+      >
+        Recarregar
+      </button>
+      <details style={{ maxWidth: 480, width: "100%", textAlign: "left" }}>
+        <summary style={{ fontSize: 12, color: "var(--hq-text-muted)", cursor: "pointer", marginBottom: 8 }}>
+          Detalhes técnicos
+        </summary>
+        <pre style={{
+          fontSize: 11, color: "var(--hq-danger)", background: "var(--hq-p1-bg)",
+          padding: 12, borderRadius: 8, overflow: "auto", whiteSpace: "pre-wrap",
+          border: "1px solid var(--hq-p1)",
+        }}>
+          {error.message}
+          {"\n\n"}
+          {error.stack}
+        </pre>
+      </details>
     </div>
   ),
 });
@@ -146,24 +199,84 @@ function RootComponent() {
   );
 }
 
+function RouteLoadingFallback() {
+  return (
+    <div style={{ height: "100%", display: "grid", placeItems: "center", background: "var(--hq-bg)" }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: "50%",
+        border: "2.5px solid var(--hq-border)",
+        borderTopColor: "var(--hq-accent)",
+        animation: "spin 700ms linear infinite",
+      }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+function OfflineBanner() {
+  const online = useOnline();
+  if (online) return null;
+  return (
+    <div style={{
+      position: "fixed", top: "var(--hq-safe-top)", left: 0, right: 0,
+      zIndex: 270, padding: "6px 14px",
+      background: "#FF9F0A",
+      color: "#000", fontSize: 12, fontWeight: 600,
+      textAlign: "center", letterSpacing: "-0.005em",
+    }}>
+      Sem conexão · mudanças serão sincronizadas quando voltar online
+    </div>
+  );
+}
+
+function InstallPromptComponent() {
+  return <InstallPrompt />;
+}
+
+function UpdateBanner({ onApply }: { onApply: () => void }) {
+  return (
+    <div style={{
+      position: "fixed", top: "calc(var(--hq-safe-top) + 12px)", left: 12, right: 12,
+      zIndex: 260, padding: "10px 14px",
+      background: "var(--hq-modal-bg)",
+      backdropFilter: "blur(24px) saturate(1.8)",
+      WebkitBackdropFilter: "blur(24px) saturate(1.8)",
+      border: "1px solid var(--hq-card-border)",
+      borderRadius: 12, display: "flex", alignItems: "center", gap: 10,
+      fontSize: 12.5, color: "var(--hq-text)",
+      boxShadow: "var(--hq-shadow-float)",
+      animation: "slideDown 220ms ease-out",
+    }}>
+      <style>{`@keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
+      <span style={{ flex: 1 }}>✨ Nova versão disponível</span>
+      <button onClick={onApply} style={{
+        background: "var(--hq-accent)", color: "#fff",
+        border: "none", padding: "5px 12px", borderRadius: 6,
+        fontSize: 12, fontWeight: 600, cursor: "pointer",
+      }}>Atualizar</button>
+    </div>
+  );
+}
+
 function AppShell() {
   const { theme } = useTheme();
   const isMobile = useIsMobile();
-
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    }
-  }, []);
+  useThemeColor();
+  const { updateAvailable, applyUpdate } = useServiceWorkerUpdate();
 
   return (
     <>
+      <OfflineBanner />
+      {updateAvailable && <UpdateBanner onApply={applyUpdate} />}
       <div style={{
         display: "flex",
-        height: "100dvh",
+        height: "var(--hq-app-height)",
         background: "var(--hq-bg)",
         color: "var(--hq-text)",
         overflow: "hidden",
+        paddingTop: "var(--hq-safe-top)",
+        paddingLeft: "var(--hq-safe-left)",
+        paddingRight: "var(--hq-safe-right)",
       }}>
         {/* Sidebar — desktop only */}
         {!isMobile && <Sidebar />}
@@ -179,7 +292,9 @@ function AppShell() {
           paddingBottom: isMobile ? "env(safe-area-inset-bottom, 0px)" : 0,
           WebkitOverflowScrolling: "touch",
         }}>
-          <Outlet />
+          <Suspense fallback={<RouteLoadingFallback />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
 
@@ -187,6 +302,7 @@ function AppShell() {
       {isMobile && <MobileNav />}
 
       <Toaster theme={theme === "light" ? "light" : "dark"} position="bottom-right" />
+      <InstallPromptComponent />
     </>
   );
 }

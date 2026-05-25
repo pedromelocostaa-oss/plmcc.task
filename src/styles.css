@@ -27,6 +27,14 @@
 }
 
 :root {
+  /* ── Safe area insets (iOS PWA) ────────────────────── */
+  --hq-safe-top:    env(safe-area-inset-top, 0px);
+  --hq-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --hq-safe-left:   env(safe-area-inset-left, 0px);
+  --hq-safe-right:  env(safe-area-inset-right, 0px);
+  --hq-app-height:  100dvh;
+  --hq-content-height: calc(100dvh - var(--hq-safe-top) - var(--hq-safe-bottom));
+
   /* ── Core surfaces ─────────────────────────────────── */
   --hq-bg:              #1A1A1A;
   --hq-bg-elevated:     #202020;
@@ -104,8 +112,30 @@ html, body, #root {
 /* Dynamic viewport height — fills correctly on mobile browsers */
 html { height: 100dvh; }
 
+@supports not (height: 100dvh) {
+  :root { --hq-app-height: 100vh; }
+}
+
 /* Prevent horizontal scroll on mobile */
 body { max-width: 100vw; overflow-x: hidden; }
+
+/* Disable iOS bounce/overscroll */
+html, body {
+  overscroll-behavior: none;
+}
+#root {
+  overscroll-behavior: none;
+}
+.allow-scroll, [data-scroll-container] {
+  overscroll-behavior: contain;
+}
+button, [role="button"], nav, aside {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+* { -webkit-tap-highlight-color: transparent; }
+html { touch-action: manipulation; }
 
 .font-mono { font-family: "SF Mono", "Fira Code", ui-monospace, monospace; }
 
@@ -142,6 +172,12 @@ input:focus, textarea:focus { outline: none; }
 .spring-bounce  { transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
 .spring-snappy  { transition: all 0.28s cubic-bezier(0.23, 1, 0.32, 1); }
 
+/* Shimmer animation for skeleton loaders */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* Checkbox circle animation */
 @keyframes checkPop {
   0%   { transform: scale(0.8); opacity: 0; }
@@ -169,13 +205,23 @@ input:focus, textarea:focus { outline: none; }
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
+/* ─── Reduced motion accessibility ─────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ─── Mobile: hide scrollbars in filter bars ────────────────────────────── */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* ─── Minimum touch target (WCAG 2.5.5) ────────────────────────────────── */
 @media (pointer: coarse) {
-  button, a, [role="button"] {
+  button, [role="button"], a, input[type="checkbox"], input[type="radio"] {
     min-height: 44px;
     min-width: 44px;
   }
@@ -183,6 +229,17 @@ input:focus, textarea:focus { outline: none; }
   .badge-sm {
     min-height: unset;
     min-width: unset;
+  }
+}
+
+/* ─── Tap feedback ──────────────────────────────────────────────────────── */
+button, [role="button"], a {
+  transition: opacity 100ms ease-out, transform 80ms ease-out;
+}
+@media (hover: none) {
+  button:active, [role="button"]:active, a:active {
+    transform: scale(0.97);
+    opacity: 0.85;
   }
 }
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { X, CheckSquare, Link as LinkIcon, FileText, ShoppingCart, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -51,6 +52,8 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
   const createNote = useCreateNote();
   const createPurchase = useCreatePurchase();
   const isMobile = useIsMobile();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef);
 
   // Task form
   const [taskTitle, setTaskTitle] = useState("");
@@ -269,7 +272,7 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
           to { opacity:1; transform:scale(1) translateY(0); }
         }
       `}</style>
-      <div onClick={(e) => e.stopPropagation()} style={innerStyle}>
+      <div ref={dialogRef} onClick={(e) => e.stopPropagation()} style={innerStyle} role="dialog" aria-modal="true">
 
         {/* iOS drag handle (mobile) */}
         {isMobile && (

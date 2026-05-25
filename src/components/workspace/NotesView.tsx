@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { NoteCardSkeleton } from "@/components/ui/skeleton-card";
 import { FileText, Plus, Pencil, Trash2, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useNotes, useUpdateNote, useDeleteNote, useProjects } from "@/lib/queries";
@@ -52,7 +53,9 @@ export function NotesView() {
       </div>
 
       {isLoading ? (
-        <div style={{ color: colors.textMuted, fontSize: 13 }}>Carregando...</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
+          {[1, 2, 3].map((i) => <NoteCardSkeleton key={i} />)}
+        </div>
       ) : notes.length === 0 ? (
         <EmptyState
           icon={<FileText size={24} />}

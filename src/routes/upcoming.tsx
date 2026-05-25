@@ -1,4 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { UpcomingView } from "@/components/workspace/UpcomingView";
+import { lazy } from "react";
+
+const UpcomingView = lazy(() =>
+  import("@/components/workspace/UpcomingView").then((m) => ({ default: m.UpcomingView }))
+);
 
 export const Route = createFileRoute("/upcoming")({ component: UpcomingView });
