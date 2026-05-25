@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 200">
+  <defs>
+    
+    <mask id="cc-mask-wm-amber">
+      <rect width="540" height="200" fill="white"></rect>
+      <g transform="translate(370 70)">
+        <path d="M 36 28 Q 22 28 22 40 Q 22 52 36 52" stroke="black" stroke-width="7" stroke-linecap="round" fill="none"></path>
+        <path d="M 58 28 Q 44 28 44 40 Q 44 52 58 52" stroke="black" stroke-width="7" stroke-linecap="round" fill="none"></path>
+      </g>
+    </mask>
+  </defs>
+  <text x="10" y="150" class="plm" fill="#E58430">Plm</text>
+  <g transform="translate(370 70)">
+    <circle cx="40" cy="40" r="38" fill="#E58430" mask="url(#cc-mask-wm-amber)"></circle>
+  </g>
+</svg>

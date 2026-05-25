@@ -1,5 +1,6 @@
 /**
- * Generates all PWA icon + splash sizes from an embedded SVG.
+ * Generates all PWA icon + splash sizes from the official amber logo PNGs.
+ * Uses the 1024px source PNG as master, composites on dark background.
  * Run: node scripts/gen-icons.mjs
  */
 
@@ -15,91 +16,88 @@ const splashDir = join(root, "public/splash");
 mkdirSync(iconDir, { recursive: true });
 mkdirSync(splashDir, { recursive: true });
 
+// Official logo source (1024px, transparent bg, amber circle with cc cutout)
+const LOGO_SRC = "C:/Users/pront/Downloads/plmcc_logos/plmcc-final/png/symbol-filled-amber-1024.png";
+
 // Brand colors
-const BG = "#1A1A1A";
+const BG_DARK = { r: 26, g: 26, b: 26, alpha: 1 };   // #1A1A1A
 const ACCENT = "#E58430";
 
 /**
- * Builds the app icon SVG.
- * @param {number} size
- * @param {boolean} maskable  — safe-zone padding (10% each side), no border-radius
+ * Creates an icon PNG of `size` × `size`:
+ *   - Dark rounded-rect background (squircle-ish)
+ *   - Logo centered with padding
+ *   - Optional: maskable (full-bleed, no border-radius)
  */
-function iconSvg(size, maskable = false) {
-  const pad = maskable ? size * 0.1 : 0;
-  const inner = size - pad * 2;
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = inner / 2;
-  const bgR = maskable ? 0 : size * 0.22;
-  const fontSize = inner * 0.42;
-  const ringR = r * 0.72;
-  const strokeW = size * 0.035;
+async function makeIcon(outPath, size, maskable = false) {
+  const bgRadius = maskable ? 0 : Math.round(size * 0.22);
+  const logoPad = maskable ? Math.round(size * 0.10) : Math.round(size * 0.12);
+  const logoSize = size - logoPad * 2;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" rx="${bgR}" ry="${bgR}" fill="${BG}"/>
-  <circle cx="${cx}" cy="${cy}" r="${ringR}" fill="none" stroke="${ACCENT}" stroke-width="${strokeW * 0.7}" opacity="0.18"/>
-  <path
-    d="M ${cx} ${cy - ringR} A ${ringR} ${ringR} 0 0 1 ${cx + ringR} ${cy}"
-    fill="none" stroke="${ACCENT}" stroke-width="${strokeW}" stroke-linecap="round" opacity="0.9"
-  />
-  <text
-    x="${cx}" y="${cy + fontSize * 0.36}"
-    text-anchor="middle"
-    font-family="system-ui,-apple-system,'SF Pro Display',Arial,sans-serif"
-    font-size="${fontSize}" font-weight="800"
-    fill="${ACCENT}"
-  >HQ</text>
-</svg>`;
+  // 1. Resize and prepare logo PNG
+  const logoPng = await sharp(LOGO_SRC)
+    .resize(logoSize, logoSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+
+  // 2. Build SVG background with rounded corners
+  const bgSvg = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
+       <rect width="${size}" height="${size}" rx="${bgRadius}" ry="${bgRadius}" fill="#1A1A1A"/>
+     </svg>`
+  );
+
+  // 3. Composite: background → logo centered
+  await sharp(bgSvg)
+    .composite([{
+      input: logoPng,
+      left: logoPad,
+      top: logoPad,
+    }])
+    .png()
+    .toFile(outPath);
 }
 
 /**
- * Builds a splash screen SVG at the given dimensions.
- * Centers a large icon mark on a dark background.
+ * Creates a splash screen PNG at physicalW × physicalH.
+ * Centers the logo on a dark background with app name below.
  */
-function splashSvg(w, h) {
-  const iconSize = Math.min(w, h) * 0.22;
-  const cx = w / 2;
-  const cy = h / 2;
-  const ringR = iconSize * 0.42;
-  const fontSize = iconSize * 0.42;
-  const strokeW = iconSize * 0.06;
+async function makeSplash(outPath, w, h) {
+  const iconSize = Math.round(Math.min(w, h) * 0.18);
+  const cx = Math.round((w - iconSize) / 2);
+  const cy = Math.round((h - iconSize) / 2 - iconSize * 0.08);
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
-  <rect width="${w}" height="${h}" fill="${BG}"/>
-  <!-- Subtle glow -->
-  <circle cx="${cx}" cy="${cy}" r="${ringR * 2.2}" fill="${ACCENT}" opacity="0.04"/>
-  <!-- Ring -->
-  <circle cx="${cx}" cy="${cy}" r="${ringR}" fill="none" stroke="${ACCENT}" stroke-width="${strokeW * 0.5}" opacity="0.2"/>
-  <!-- Arc -->
-  <path
-    d="M ${cx} ${cy - ringR} A ${ringR} ${ringR} 0 0 1 ${cx + ringR} ${cy}"
-    fill="none" stroke="${ACCENT}" stroke-width="${strokeW}" stroke-linecap="round" opacity="0.9"
-  />
-  <!-- HQ -->
-  <text
-    x="${cx}" y="${cy + fontSize * 0.36}"
-    text-anchor="middle"
-    font-family="system-ui,-apple-system,'SF Pro Display',Arial,sans-serif"
-    font-size="${fontSize}" font-weight="800"
-    fill="${ACCENT}"
-  >HQ</text>
-  <!-- App name -->
-  <text
-    x="${cx}" y="${cy + fontSize * 0.36 + iconSize * 0.38}"
-    text-anchor="middle"
-    font-family="system-ui,-apple-system,'SF Pro Display',Arial,sans-serif"
-    font-size="${iconSize * 0.13}" font-weight="500" letter-spacing="0.08em"
-    fill="${ACCENT}" opacity="0.5"
-  >PEDRO'S HQ</text>
-</svg>`;
+  const logoPng = await sharp(LOGO_SRC)
+    .resize(iconSize, iconSize, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+
+  const labelFontSize = Math.round(iconSize * 0.13);
+  const labelY = cy + iconSize + Math.round(iconSize * 0.28);
+
+  const bgSvg = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+       <rect width="${w}" height="${h}" fill="#1A1A1A"/>
+       <text
+         x="${w / 2}" y="${labelY}"
+         text-anchor="middle"
+         font-family="system-ui,-apple-system,'SF Pro Display',Arial,sans-serif"
+         font-size="${labelFontSize}" font-weight="500" letter-spacing="0.1em"
+         fill="${ACCENT}" opacity="0.5"
+       >PEDRO'S HQ</text>
+     </svg>`
+  );
+
+  await sharp(bgSvg)
+    .composite([{ input: logoPng, left: cx, top: cy }])
+    .png()
+    .toFile(outPath);
 }
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
+// ── Icon sizes ─────────────────────────────────────────────────────────────────
 const sizes = [72, 96, 128, 144, 152, 192, 256, 384, 512];
 
-// ── Splash screen specs (device-width × device-height × dpr) ─────────────────
-// Each entry: [deviceW, deviceH, dpr, filename]
+// ── Splash specs (deviceW × deviceH × dpr) ────────────────────────────────────
 const splashes = [
   [390, 844, 3, "splash-390"],   // iPhone 14, 13, 12
   [414, 896, 2, "splash-414"],   // iPhone XR, 11
@@ -110,37 +108,39 @@ const splashes = [
 ];
 
 async function generate() {
-  console.log("Generating PWA icons…\n");
+  console.log("Generating PWA icons from official amber logo…\n");
 
   for (const size of sizes) {
-    const svg = Buffer.from(iconSvg(size, false));
-    await sharp(svg).png().toFile(join(iconDir, `icon-${size}.png`));
+    const file = join(iconDir, `icon-${size}.png`);
+    await makeIcon(file, size, false);
     console.log(`  ✓ icon-${size}.png`);
   }
 
+  // Maskable variants
   for (const size of [192, 512]) {
-    const svg = Buffer.from(iconSvg(size, true));
-    await sharp(svg).png().toFile(join(iconDir, `icon-maskable-${size}.png`));
+    const file = join(iconDir, `icon-maskable-${size}.png`);
+    await makeIcon(file, size, true);
     console.log(`  ✓ icon-maskable-${size}.png`);
   }
 
   // apple-touch-icon (180px)
-  const ati = Buffer.from(iconSvg(180, false));
-  await sharp(ati).png().toFile(join(iconDir, "apple-touch-icon.png"));
+  await makeIcon(join(iconDir, "apple-touch-icon.png"), 180, false);
   console.log("  ✓ apple-touch-icon.png");
 
-  // favicon-32
-  const fav = Buffer.from(iconSvg(32, false));
-  await sharp(fav).png().toFile(join(iconDir, "favicon-32.png"));
+  // favicon (32px)
+  await makeIcon(join(iconDir, "favicon-32.png"), 32, false);
   console.log("  ✓ favicon-32.png");
+
+  // favicon (16px)
+  await makeIcon(join(iconDir, "favicon-16.png"), 16, false);
+  console.log("  ✓ favicon-16.png");
 
   console.log("\nGenerating iOS splash screens…\n");
 
   for (const [dw, dh, dpr, name] of splashes) {
     const pw = dw * dpr;
     const ph = dh * dpr;
-    const svg = Buffer.from(splashSvg(pw, ph));
-    await sharp(svg).png().toFile(join(splashDir, `${name}.png`));
+    await makeSplash(join(splashDir, `${name}.png`), pw, ph);
     console.log(`  ✓ ${name}.png  (${pw}×${ph})`);
   }
 

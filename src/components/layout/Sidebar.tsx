@@ -94,50 +94,57 @@ export function Sidebar() {
 
         {/* Workspace header */}
         <div style={{
-          padding: collapsed ? "16px 0 14px" : "14px 12px 12px",
+          padding: collapsed ? "12px 0 10px" : "12px 12px 10px",
           borderBottom: `1px solid var(--hq-border)`,
           display: "flex",
           alignItems: "center",
           gap: 10,
           justifyContent: collapsed ? "center" : "space-between",
         }}>
-          {!collapsed && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-              {/* Workspace squircle */}
-              <span style={{
-                width: 32, height: 32, flexShrink: 0,
-                borderRadius: 9,
-                background: "linear-gradient(135deg, #0A84FF, #005FCC)",
-                boxShadow: "inset 0 0.5px 0 rgba(255,255,255,0.35), 0 1px 3px rgba(0,0,0,0.20)",
-                color: "#fff",
-                display: "grid", placeItems: "center",
-                fontSize: 15, fontWeight: 700, letterSpacing: "-0.03em",
-              }}>
-                P
-              </span>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: "-0.015em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  Pedro Melo
-                </div>
-                <div style={{ fontSize: 10, color: colors.textMuted, letterSpacing: "0.02em", marginTop: 1 }}>
-                  plmcc.task
+          {collapsed ? (
+            /* Collapsed: just the logo, acts as expand trigger */
+            <button
+              onClick={toggleCollapse}
+              title="Expandir sidebar"
+              style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center" }}
+            >
+              <img src="/logo.svg" alt="plmcc" width={30} height={30} />
+            </button>
+          ) : (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                {/* Brand logo */}
+                <img
+                  src="/logo.svg"
+                  alt="plmcc logo"
+                  width={32}
+                  height={32}
+                  style={{ flexShrink: 0 }}
+                />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: "-0.015em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    Pedro Melo
+                  </div>
+                  <div style={{ fontSize: 10, color: colors.textMuted, letterSpacing: "0.02em", marginTop: 1 }}>
+                    plmcc.task
+                  </div>
                 </div>
               </div>
-            </div>
+              <button
+                onClick={toggleCollapse}
+                title="Colapsar sidebar"
+                style={{
+                  background: "transparent", border: "none",
+                  color: colors.textMuted, cursor: "pointer",
+                  padding: 4, borderRadius: 6,
+                  display: "flex", alignItems: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <PanelLeftClose size={16} />
+              </button>
+            </>
           )}
-          <button
-            onClick={toggleCollapse}
-            title={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
-            style={{
-              background: "transparent", border: "none",
-              color: colors.textMuted, cursor: "pointer",
-              padding: 4, borderRadius: 6,
-              display: "flex", alignItems: "center",
-              flexShrink: 0,
-            }}
-          >
-            {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-          </button>
         </div>
 
         {/* Search button */}
