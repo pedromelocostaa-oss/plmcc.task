@@ -15,6 +15,7 @@ import { useSearch, useQuickAdd } from "@/routes/__root";
 import { SearchModal } from "@/components/workspace/SearchModal";
 import { colors, spring, radius, NAV_TINTS } from "@/lib/tokens";
 import { SquircleIcon, ProjectSquircle } from "@/components/ui/squircle-icon";
+import { LogoWordmark, LogoMark } from "@/components/ui/Logo";
 import { useTheme } from "@/hooks/use-theme";
 
 const COLLAPSED_W = 64;
@@ -102,32 +103,28 @@ export function Sidebar() {
           justifyContent: collapsed ? "center" : "space-between",
         }}>
           {collapsed ? (
-            /* Collapsed: just the logo, acts as expand trigger */
+            /* Collapsed: "cc" circle mark, acts as expand trigger */
             <button
               onClick={toggleCollapse}
               title="Expandir sidebar"
-              style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center" }}
+              style={{
+                background: "transparent", border: "none",
+                padding: 0, cursor: "pointer",
+                display: "flex", alignItems: "center",
+              }}
             >
-              <img src="/logo.svg" alt="plmcc" width={30} height={30} />
+              <LogoMark size={32} />
             </button>
           ) : (
             <>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                {/* Brand logo */}
-                <img
-                  src="/logo.svg"
-                  alt="plmcc logo"
-                  width={32}
-                  height={32}
-                  style={{ flexShrink: 0 }}
-                />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: "-0.015em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    Pedro Melo
-                  </div>
-                  <div style={{ fontSize: 10, color: colors.textMuted, letterSpacing: "0.02em", marginTop: 1 }}>
-                    plmcc.task
-                  </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                {/* Full "Plm cc" wordmark */}
+                <LogoWordmark height={28} />
+                <div style={{
+                  fontSize: 10, color: colors.textMuted,
+                  letterSpacing: "0.04em", paddingLeft: 2,
+                }}>
+                  plmcc.task · Pedro Melo
                 </div>
               </div>
               <button
