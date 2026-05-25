@@ -2,9 +2,11 @@ import { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { showUndoToast } from "@/components/ui/undo-toast";
 import { useProjects, useTasksForDate, useSetTaskStatus, useCreateTask } from "@/lib/queries";
 import type { Task } from "@/lib/types";
 import { tagColor } from "@/lib/types";
+import { TaskDetailPanel } from "@/components/workspace/TaskDetailPanel";
 import { colors, spring, radius } from "@/lib/tokens";
 import { DayCalendar, fetchCalendarEvents } from "@/components/workspace/DayCalendar";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -275,12 +277,14 @@ function InlineAdd({ status, columnAccent, selectedDate }: { status: string; col
 function KanbanCard({
   task,
   onMove,
+  onOpenDetail,
   onDragStart,
   onDragEnd,
   isDragging,
 }: {
   task: Task;
   onMove: (status: Task["status"]) => void;
+  onOpenDetail?: () => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
   isDragging?: boolean;
@@ -372,8 +376,23 @@ function KanbanCard({
             background: `${p.color}15`,
             padding: "1px 5px", borderRadius: 4,
             flexShrink: 0, letterSpacing: "0.04em",
-            marginRight: 24, // space for quick-complete button
           }}>{p.label}</span>
+          {onOpenDetail && cardHovered && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onOpenDetail(); }}
+              title="Abrir detalhes"
+              style={{
+                background: "var(--hq-inlay-bg)", border: `1px solid var(--hq-border)`,
+                borderRadius: 4, color: colors.textSecondary, cursor: "pointer",
+                padding: "1px 4px", display: "inline-flex", alignItems: "center",
+                flexShrink: 0,
+              }}
+            >
+              <ArrowRight size={10} />
+            </button>
+          )}
+          <span style={{ flex: 1 }} />
+          <span style={{ width: 24 }} />{/* space for quick-complete button */}
         </div>
 
         {/* Title */}
@@ -594,7 +613,7 @@ function KanbanCard({
 function KanbanColumn({
   config, tasks, onMove, draggedTaskId,
   onDragOver, onDrop, onDragLeave, isDragOver,
-  onCardDragStart, onCardDragEnd, selectedDate,
+  onCardDragStart, onCardDragEnd, selectedDate, onOpenDetail,
 }: {
   config: typeof COLUMNS[number];
   tasks: Task[];
@@ -607,6 +626,7 @@ function KanbanColumn({
   onCardDragStart: (id: string) => void;
   onCardDragEnd: () => void;
   selectedDate: string;
+  onOpenDetail?: (id: string) => void;
 }) {
   return (
     <div
@@ -668,6 +688,7 @@ function KanbanColumn({
             key={t.id}
             task={t}
             onMove={(status) => onMove(t.id, status)}
+            onOpenDetail={onOpenDetail ? () => onOpenDetail(t.id) : undefined}
             isDragging={draggedTaskId === t.id}
             onDragStart={() => onCardDragStart(t.id)}
             onDragEnd={onCardDragEnd}
@@ -701,6 +722,7 @@ export function HomeView() {
   const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<Task["status"] | null>(null);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const setStatus = useSetTaskStatus();
 
@@ -735,9 +757,21 @@ export function HomeView() {
   function handleMove(id: string, status: Task["status"]) {
     const task = allTasks.find((t) => t.id === id);
     if (!task) return;
+    const previousStatus = task.status;
     setStatus.mutate(
       { id, status, projectId: task.project_id },
-      { onError: () => toast.error("Erro ao mover tarefa") }
+      {
+        onSuccess: () => {
+          const labels: Record<Task["status"], string> = { todo: "A Fazer", doing: "Fazendo", done: "Concluído" };
+          showUndoToast({
+            title: `Movida para ${labels[status]}`,
+            description: task.title.length > 45 ? task.title.slice(0, 45) + "…" : task.title,
+            iconBg: status === "done" ? "rgba(48,209,88,0.4)" : "rgba(229,132,48,0.4)",
+            undo: () => setStatus.mutate({ id, status: previousStatus, projectId: task.project_id }),
+          });
+        },
+        onError: () => toast.error("Erro ao mover tarefa"),
+      }
     );
   }
 
@@ -1036,7 +1070,7 @@ export function HomeView() {
                       </div>
                     )}
                     {col.tasks.map((t) => (
-                      <KanbanCard key={t.id} task={t} onMove={(status) => handleMove(t.id, status)} />
+                      <KanbanCard key={t.id} task={t} onMove={(status) => handleMove(t.id, status)} onOpenDetail={() => setDetailTaskId(t.id)} />
                     ))}
                   </>
                 );
@@ -1071,6 +1105,7 @@ export function HomeView() {
                     config={col}
                     tasks={col.tasks}
                     onMove={handleMove}
+                    onOpenDetail={(id) => setDetailTaskId(id)}
                     draggedTaskId={draggedTaskId}
                     isDragOver={dragOverColumn === col.status}
                     onDragOver={(e) => { e.preventDefault(); setDragOverColumn(col.status); }}
@@ -1101,6 +1136,18 @@ export function HomeView() {
           {calendarPanel}
         </div>
       )}
+
+      {/* Task detail panel (slide-over) */}
+      {detailTaskId && (() => {
+        const detailTask = allTasks.find((t) => t.id === detailTaskId);
+        if (!detailTask) return null;
+        return (
+          <TaskDetailPanel
+            task={detailTask}
+            onClose={() => setDetailTaskId(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

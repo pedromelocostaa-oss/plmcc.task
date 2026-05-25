@@ -129,8 +129,8 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
       toast.success("Tarefa criada!");
       setTaskRecurrence("");
       onClose();
-    } catch {
-      toast.error("Erro ao criar tarefa");
+    } catch (err) {
+      toast.error((err as { message?: string })?.message ?? "Erro ao criar tarefa");
     }
   }
 
