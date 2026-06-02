@@ -6,6 +6,18 @@ export function useServiceWorkerUpdate() {
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
+
+    // Em desenvolvimento o SW causa mais problemas do que resolve:
+    // intercepta requests do Supabase e pode mostrar dados stale ou falhar.
+    // Só registra em produção.
+    if (!import.meta.env.PROD) {
+      // Remove qualquer SW antigo que possa estar instalado de sessões anteriores
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((reg) => reg.unregister());
+      });
+      return;
+    }
+
     navigator.serviceWorker.register("/sw.js")
       .then((reg) => {
         setRegistration(reg);
