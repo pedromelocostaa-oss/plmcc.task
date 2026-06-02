@@ -851,12 +851,29 @@ export function useSetTaskStatus() {
       return updatedTask as unknown as Task;
     },
     onMutate: async ({ id, status }) => {
-      // Optimistic: update all date-keyed caches
+      // Cancel any in-flight refetches so they don't overwrite the optimistic update
+      await qc.cancelQueries({ queryKey: ["tasks", "date"] });
+
+      // Snapshot previous data for rollback on error
       const allKeys = qc.getQueryCache().findAll({ queryKey: ["tasks", "date"] });
+      const snapshots = allKeys.map((q) => ({
+        key: q.queryKey,
+        data: qc.getQueryData<Task[]>(q.queryKey),
+      }));
+
+      // Optimistically update all date-keyed caches immediately
       for (const q of allKeys) {
         qc.setQueryData<Task[]>(q.queryKey, (old) =>
           old?.map((t) => t.id === id ? { ...t, status, completed_at: status === 'done' ? new Date().toISOString() : null } : t)
         );
+      }
+
+      return { snapshots };
+    },
+    onError: (_err, _vars, ctx) => {
+      // Roll back all caches to their previous state
+      for (const { key, data } of ctx?.snapshots ?? []) {
+        qc.setQueryData(key, data);
       }
     },
     onSettled: (_result, _error, vars) => {
