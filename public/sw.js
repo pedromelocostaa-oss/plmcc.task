@@ -1,129 +1,122 @@
-const VERSION = 'v3-2026-05-25';
+const VERSION = 'v4-2026-06-02';
 
-const SHELL_CACHE  = `hq-shell-${VERSION}`;
-const ASSETS_CACHE = `hq-assets-${VERSION}`;
-const DATA_CACHE   = `hq-data-${VERSION}`;
+// Em desenvolvimento (localhost) o SW se auto-destroi imediatamente:
+// libera todas as caches antigas e não intercepta nenhuma request.
+const IS_DEV = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
 
-const SHELL_URLS = [
-  '/',
-  '/offline',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-];
+if (IS_DEV) {
+  // Instala e ativa imediatamente
+  self.addEventListener('install', () => self.skipWaiting());
 
-// ─── Install ──────────────────────────────────────────────────────────────────
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) =>
-      cache.addAll(SHELL_URLS.map((url) => new Request(url, { cache: 'reload' })))
-        .catch(() => {/* non-critical if some icons missing */})
-    )
-  );
-  self.skipWaiting();
-});
-
-// ─── Activate ─────────────────────────────────────────────────────────────────
-self.addEventListener('activate', (event) => {
-  const keepCaches = new Set([SHELL_CACHE, ASSETS_CACHE, DATA_CACHE]);
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => !keepCaches.has(k)).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
-});
-
-// ─── Message handler ──────────────────────────────────────────────────────────
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
-
-// ─── Background sync ──────────────────────────────────────────────────────────
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'hq-flush-queue') {
+  // Ao ativar: limpa todas as caches e reivindica controle para poder se desregistrar
+  self.addEventListener('activate', (event) => {
     event.waitUntil(
-      self.clients.matchAll().then((clients) => {
-        clients.forEach((client) => client.postMessage({ type: 'SYNC_COMPLETE' }));
-      })
+      caches.keys()
+        .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+        .then(() => self.clients.claim())
+        .then(() => self.registration.unregister())
     );
+  });
+
+  // Não intercepta nada — deixa tudo passar direto para a rede
+} else {
+  // ─── PRODUÇÃO ────────────────────────────────────────────────────────────────
+
+  const SHELL_CACHE  = `hq-shell-${VERSION}`;
+  const ASSETS_CACHE = `hq-assets-${VERSION}`;
+  const DATA_CACHE   = `hq-data-${VERSION}`;
+
+  const SHELL_URLS = [
+    '/',
+    '/manifest.json',
+    '/icons/icon-192.png',
+    '/icons/icon-512.png',
+  ];
+
+  self.addEventListener('install', (event) => {
+    event.waitUntil(
+      caches.open(SHELL_CACHE).then((cache) =>
+        cache.addAll(SHELL_URLS.map((url) => new Request(url, { cache: 'reload' })))
+          .catch(() => {})
+      )
+    );
+    self.skipWaiting();
+  });
+
+  self.addEventListener('activate', (event) => {
+    const keepCaches = new Set([SHELL_CACHE, ASSETS_CACHE, DATA_CACHE]);
+    event.waitUntil(
+      caches.keys()
+        .then((keys) => Promise.all(keys.filter((k) => !keepCaches.has(k)).map((k) => caches.delete(k))))
+        .then(() => self.clients.claim())
+    );
+  });
+
+  self.addEventListener('message', (event) => {
+    if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+  });
+
+  self.addEventListener('fetch', (event) => {
+    const { request } = event;
+    const url = new URL(request.url);
+
+    if (request.method !== 'GET' || !url.protocol.startsWith('http')) return;
+
+    // Supabase: stale-while-revalidate
+    if (url.hostname.includes('supabase.co')) {
+      event.respondWith(staleWhileRevalidate(request, DATA_CACHE));
+      return;
+    }
+
+    // Assets estáticos: cache-first
+    if (/\.(js|css|woff2?|png|jpg|svg|ico|webp)(\?|$)/.test(url.pathname)) {
+      event.respondWith(cacheFirstWithRefresh(request, ASSETS_CACHE));
+      return;
+    }
+
+    // Navegações: network-first com timeout
+    if (request.mode === 'navigate') {
+      event.respondWith(networkFirstWithTimeout(request, 3000));
+      return;
+    }
+
+    event.respondWith(fetch(request).catch(() => caches.match(request)));
+  });
+
+  async function networkFirstWithTimeout(request, timeoutMs) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(request, { signal: controller.signal });
+      clearTimeout(timeout);
+      const cache = await caches.open(SHELL_CACHE);
+      cache.put(request, response.clone());
+      return response;
+    } catch {
+      clearTimeout(timeout);
+      const cached = await caches.match(request);
+      if (cached) return cached;
+      return caches.match('/') || new Response('Offline', { status: 503 });
+    }
   }
-});
 
-// ─── Fetch ────────────────────────────────────────────────────────────────────
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // Skip non-GET and non-http requests
-  if (request.method !== 'GET' || !url.protocol.startsWith('http')) return;
-
-  // ── Supabase: stale-while-revalidate ──────────────────────────────────────
-  if (url.hostname.includes('supabase.co')) {
-    event.respondWith(staleWhileRevalidate(request, DATA_CACHE));
-    return;
+  async function staleWhileRevalidate(request, cacheName) {
+    const cache = await caches.open(cacheName);
+    const cached = await cache.match(request);
+    const networkPromise = fetch(request).then((res) => {
+      if (res.ok) cache.put(request, res.clone());
+      return res;
+    }).catch(() => null);
+    return cached || await networkPromise || new Response('{}', { status: 503 });
   }
 
-  // ── Static assets: cache-first with background refresh ───────────────────
-  if (/\.(js|css|woff2?|png|jpg|svg|ico|webp)(\?|$)/.test(url.pathname)) {
-    event.respondWith(cacheFirstWithRefresh(request, ASSETS_CACHE));
-    return;
-  }
-
-  // ── Navigations: network-first with 3s timeout, fallback to shell ─────────
-  if (request.mode === 'navigate') {
-    event.respondWith(networkFirstWithTimeout(request, 3000));
-    return;
-  }
-
-  // ── Everything else: network-first ───────────────────────────────────────
-  event.respondWith(
-    fetch(request).catch(() => caches.match(request))
-  );
-});
-
-// ─── Strategies ───────────────────────────────────────────────────────────────
-
-async function networkFirstWithTimeout(request, timeoutMs) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(request, { signal: controller.signal });
-    clearTimeout(timeout);
-    const cache = await caches.open(SHELL_CACHE);
-    cache.put(request, response.clone());
-    return response;
-  } catch {
-    clearTimeout(timeout);
-    const cached = await caches.match(request);
+  async function cacheFirstWithRefresh(request, cacheName) {
+    const cache = await caches.open(cacheName);
+    const cached = await cache.match(request);
+    fetch(request).then((res) => { if (res.ok) cache.put(request, res.clone()); }).catch(() => {});
     if (cached) return cached;
-    const shell = await caches.match('/');
-    if (shell) return shell;
-    const offline = await caches.match('/offline');
-    return offline || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
-  }
-}
-
-async function staleWhileRevalidate(request, cacheName) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-  const networkPromise = fetch(request).then((response) => {
+    const response = await fetch(request);
     if (response.ok) cache.put(request, response.clone());
     return response;
-  }).catch(() => null);
-  return cached || networkPromise;
-}
-
-async function cacheFirstWithRefresh(request, cacheName) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-  // Trigger background refresh regardless
-  fetch(request).then((response) => {
-    if (response.ok) cache.put(request, response.clone());
-  }).catch(() => {});
-  if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok) cache.put(request, response.clone());
-  return response;
+  }
 }
