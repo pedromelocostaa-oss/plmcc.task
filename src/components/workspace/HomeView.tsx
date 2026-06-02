@@ -8,7 +8,8 @@ import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, C
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { showUndoToast } from "@/components/ui/undo-toast";
-import { useProjects, useTasksForDate, useSetTaskStatus, useCreateTask, useDeleteTask } from "@/lib/queries";
+import { useProjects, useTasksForDate, useSetTaskStatus, useDeleteTask } from "@/lib/queries";
+import { useQuickAdd } from "@/routes/__root";
 import type { Task } from "@/lib/types";
 import { tagColor } from "@/lib/types";
 import { TaskDetailPanel } from "@/components/workspace/TaskDetailPanel";
@@ -227,53 +228,37 @@ const COLUMNS: { status: Task["status"]; label: string; accent: string; accentBg
 ];
 
 // ── InlineAdd ─────────────────────────────────────────────────────────────────
+// Abre o QuickAddModal completo (projeto, prazo, prioridade, descrição, subtarefas)
 
-function InlineAdd({ status, columnAccent, selectedDate }: { status: string; columnAccent: string; selectedDate: string }) {
-  const [focused, setFocused] = useState(false);
-  const [val, setVal] = useState("");
-  const { data: projects = [] } = useProjects();
-  const createTask = useCreateTask();
-
-  const defaultProject = useMemo(() => {
-    const blis = projects.find((p: any) => p.name.toLowerCase().includes("blis"));
-    return (blis ?? projects[0])?.id;
-  }, [projects]);
-
-  function submit() {
-    if (!val.trim() || !defaultProject) return;
-    createTask.mutate({ project_id: defaultProject, title: val.trim(), status: status as any, priority: 2, due_date: selectedDate });
-    setVal("");
-    setFocused(false);
-  }
+function InlineAdd({ columnAccent }: { columnAccent: string }) {
+  const { openQuickAdd } = useQuickAdd();
+  const [hovered, setHovered] = useState(false);
 
   return (
-    <div style={{
-      margin: "4px 0 8px",
-      borderRadius: 8,
-      border: `1px dashed ${focused ? columnAccent : "var(--hq-border)"}`,
-      background: focused ? "var(--hq-bg-elevated)" : "transparent",
-      transition: "all 120ms",
-      overflow: "hidden",
-    }}>
-      <input
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => { if (!val.trim()) setFocused(false); }}
-        onKeyDown={(e) => { if (e.key === "Enter") submit(); if (e.key === "Escape") { setVal(""); setFocused(false); } }}
-        placeholder="+ Adicionar tarefa"
-        style={{
-          width: "100%", border: "none", background: "transparent",
-          padding: "7px 10px", fontSize: 12.5,
-          color: "var(--hq-text)", outline: "none", boxSizing: "border-box",
-        }}
-      />
-      {focused && val.trim() && (
-        <div style={{ fontSize: 10, color: "var(--hq-text-muted)", padding: "0 10px 5px" }}>
-          ↵ criar · Esc cancelar
-        </div>
-      )}
-    </div>
+    <button
+      onClick={() => openQuickAdd("task")}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: "100%",
+        margin: "4px 0 8px",
+        borderRadius: 8,
+        border: `1px dashed ${hovered ? columnAccent : "var(--hq-border)"}`,
+        background: hovered ? `${columnAccent}0D` : "transparent",
+        padding: "7px 10px",
+        fontSize: 12.5,
+        color: hovered ? columnAccent : "var(--hq-text-muted)",
+        cursor: "pointer",
+        textAlign: "left",
+        transition: "all 150ms",
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+      }}
+    >
+      <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+      Adicionar tarefa
+    </button>
   );
 }
 
@@ -709,7 +694,7 @@ function KanbanColumn({
         ))}
 
         {/* Inline add at bottom of column */}
-        <InlineAdd status={config.status} columnAccent={config.accent} selectedDate={selectedDate} />
+        <InlineAdd columnAccent={config.accent} />
       </div>
     </div>
   );
