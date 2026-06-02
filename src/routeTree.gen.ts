@@ -9,12 +9,12 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UpcomingRouteImport } from './routes/upcoming'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as PurchasesRouteImport } from './routes/purchases'
+import { Route as NotesRouteImport } from './routes/notes'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BookmarksRouteImport } from './routes/bookmarks'
-import { Route as NotesRouteImport } from './routes/notes'
-import { Route as PurchasesRouteImport } from './routes/purchases'
-import { Route as UpcomingRouteImport } from './routes/upcoming'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
 
@@ -28,6 +28,16 @@ const TasksRoute = TasksRouteImport.update({
   path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PurchasesRoute = PurchasesRouteImport.update({
+  id: '/purchases',
+  path: '/purchases',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotesRoute = NotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -36,16 +46,6 @@ const DashboardRoute = DashboardRouteImport.update({
 const BookmarksRoute = BookmarksRouteImport.update({
   id: '/bookmarks',
   path: '/bookmarks',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotesRoute = NotesRouteImport.update({
-  id: '/notes',
-  path: '/notes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PurchasesRoute = PurchasesRouteImport.update({
-  id: '/purchases',
-  path: '/purchases',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -63,9 +63,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/dashboard': typeof DashboardRoute
-  '/tasks': typeof TasksRoute
   '/notes': typeof NotesRoute
   '/purchases': typeof PurchasesRoute
+  '/tasks': typeof TasksRoute
   '/upcoming': typeof UpcomingRoute
   '/projects/$id': typeof ProjectsIdRoute
 }
@@ -73,9 +73,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/dashboard': typeof DashboardRoute
-  '/tasks': typeof TasksRoute
   '/notes': typeof NotesRoute
   '/purchases': typeof PurchasesRoute
+  '/tasks': typeof TasksRoute
   '/upcoming': typeof UpcomingRoute
   '/projects/$id': typeof ProjectsIdRoute
 }
@@ -84,25 +84,41 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/dashboard': typeof DashboardRoute
-  '/tasks': typeof TasksRoute
   '/notes': typeof NotesRoute
   '/purchases': typeof PurchasesRoute
+  '/tasks': typeof TasksRoute
   '/upcoming': typeof UpcomingRoute
   '/projects/$id': typeof ProjectsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/bookmarks' | '/dashboard' | '/tasks' | '/notes' | '/purchases' | '/upcoming' | '/projects/$id'
+  fullPaths:
+    | '/'
+    | '/bookmarks'
+    | '/dashboard'
+    | '/notes'
+    | '/purchases'
+    | '/tasks'
+    | '/upcoming'
+    | '/projects/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/bookmarks' | '/dashboard' | '/tasks' | '/notes' | '/purchases' | '/upcoming' | '/projects/$id'
+  to:
+    | '/'
+    | '/bookmarks'
+    | '/dashboard'
+    | '/notes'
+    | '/purchases'
+    | '/tasks'
+    | '/upcoming'
+    | '/projects/$id'
   id:
     | '__root__'
     | '/'
     | '/bookmarks'
     | '/dashboard'
-    | '/tasks'
     | '/notes'
     | '/purchases'
+    | '/tasks'
     | '/upcoming'
     | '/projects/$id'
   fileRoutesById: FileRoutesById
@@ -111,20 +127,41 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BookmarksRoute: typeof BookmarksRoute
   DashboardRoute: typeof DashboardRoute
-  TasksRoute: typeof TasksRoute
   NotesRoute: typeof NotesRoute
   PurchasesRoute: typeof PurchasesRoute
+  TasksRoute: typeof TasksRoute
   UpcomingRoute: typeof UpcomingRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/upcoming': {
+      id: '/upcoming'
+      path: '/upcoming'
+      fullPath: '/upcoming'
+      preLoaderRoute: typeof UpcomingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tasks': {
       id: '/tasks'
       path: '/tasks'
       fullPath: '/tasks'
       preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/purchases': {
+      id: '/purchases'
+      path: '/purchases'
+      fullPath: '/purchases'
+      preLoaderRoute: typeof PurchasesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notes': {
+      id: '/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof NotesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -139,27 +176,6 @@ declare module '@tanstack/react-router' {
       path: '/bookmarks'
       fullPath: '/bookmarks'
       preLoaderRoute: typeof BookmarksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notes': {
-      id: '/notes'
-      path: '/notes'
-      fullPath: '/notes'
-      preLoaderRoute: typeof NotesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/purchases': {
-      id: '/purchases'
-      path: '/purchases'
-      fullPath: '/purchases'
-      preLoaderRoute: typeof PurchasesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/upcoming': {
-      id: '/upcoming'
-      path: '/upcoming'
-      fullPath: '/upcoming'
-      preLoaderRoute: typeof UpcomingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -183,9 +199,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BookmarksRoute: BookmarksRoute,
   DashboardRoute: DashboardRoute,
-  TasksRoute: TasksRoute,
   NotesRoute: NotesRoute,
   PurchasesRoute: PurchasesRoute,
+  TasksRoute: TasksRoute,
   UpcomingRoute: UpcomingRoute,
   ProjectsIdRoute: ProjectsIdRoute,
 }

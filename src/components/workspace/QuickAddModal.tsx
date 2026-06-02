@@ -4,8 +4,9 @@ import { X, CheckSquare, Link as LinkIcon, FileText, ShoppingCart, Plus, Minus }
 import { toast } from "sonner";
 import {
   useProjects, useCreateTask, useCreateBookmark,
-  useCreateNote, useCreatePurchase,
+  useCreateNote, useCreatePurchase, useCreateSubtask,
 } from "@/lib/queries";
+import { todayIso } from "@/lib/format";
 import { colors, spring, radius } from "@/lib/tokens";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
@@ -35,10 +36,6 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "purchase", label: "Compra",  icon: <ShoppingCart size={13} /> },
 ];
 
-function todayIso(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-}
-
 interface Subtask {
   id: string;
   title: string;
@@ -48,6 +45,7 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
   const [tab, setTab] = useState<Tab>(defaultTab);
   const { data: projects = [] } = useProjects();
   const createTask = useCreateTask();
+  const createSubtask = useCreateSubtask();
   const createBookmark = useCreateBookmark();
   const createNote = useCreateNote();
   const createPurchase = useCreatePurchase();
@@ -87,10 +85,13 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
 
   const subtaskInputRef = useRef<HTMLInputElement>(null);
 
+  // Auto-select first active project (respects last-used via localStorage)
   useEffect(() => {
     if (taskProject || projects.length === 0) return;
-    const blis = projects.find((p) => p.name.toLowerCase().includes("blis"));
-    setTaskProject((blis ?? projects[0]).id);
+    const lastUsed = (() => { try { return localStorage.getItem("hq-last-project"); } catch { return null; } })();
+    const active = projects.filter((p) => !p.archived);
+    const pick = active.find((p) => p.id === lastUsed) ?? active[0];
+    if (pick) setTaskProject(pick.id);
   }, [projects, taskProject]);
 
   useEffect(() => {
@@ -120,7 +121,10 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
     e.preventDefault();
     if (!taskTitle.trim() || !taskProject) return;
     try {
-      await createTask.mutateAsync({
+      // Save last-used project
+      try { localStorage.setItem("hq-last-project", taskProject); } catch {}
+
+      const task = await createTask.mutateAsync({
         title: taskTitle.trim(),
         project_id: taskProject,
         due_date: taskDate || null,
@@ -129,6 +133,21 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
         status: "todo",
         recurrence: taskRecurrence || null,
       });
+
+      // P0 fix: save subtasks that were filled in
+      if (subtasks.length > 0) {
+        await Promise.all(
+          subtasks.map((st, i) =>
+            createSubtask.mutateAsync({
+              taskId: task.id,
+              title: st.title,
+              projectId: taskProject,
+              position: i,
+            })
+          )
+        );
+      }
+
       toast.success("Tarefa criada!");
       setTaskRecurrence("");
       onClose();

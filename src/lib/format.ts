@@ -1,5 +1,15 @@
 import { TAG_PALETTE } from "./types";
 
+/** ISO date (YYYY-MM-DD) no fuso de Brasília */
+export function toIso(date: Date = new Date()): string {
+  return date.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
+/** ISO de hoje no fuso de Brasília */
+export function todayIso(): string {
+  return toIso(new Date());
+}
+
 export function tagColor(tag: string): string {
   let h = 0;
   for (let i = 0; i < tag.length; i++) h = (h * 31 + tag.charCodeAt(i)) >>> 0;

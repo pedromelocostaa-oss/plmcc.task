@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, ArrowRight } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
-import { useAllTasks, useBookmarks, useLinksByProject, useProjects } from "@/lib/queries";
+import { useAllTasks, useBookmarks, useProjects, useNotes } from "@/lib/queries";
 import { hostname } from "@/lib/format";
 import { colors, spring, radius } from "@/lib/tokens";
 
-export function SearchModal({ onClose }: { onClose: () => void }) {
+export function SearchModal({ onClose, onOpenTaskDetail }: {
+  onClose: () => void;
+  onOpenTaskDetail?: (taskId: string) => void;
+}) {
   const [q, setQ] = useState("");
   const [selectedIdx, setSelectedIdx] = useState(0);
   const nav = useNavigate();
   const { data: allTasks = [] } = useAllTasks();
   const { data: bookmarks = [] } = useBookmarks();
   const { data: projects = [] } = useProjects();
+  const { data: notes = [] } = useNotes();
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -30,43 +34,85 @@ export function SearchModal({ onClose }: { onClose: () => void }) {
     type Result = { kind: string; id: string; title: string; sub: string; color: string; onClick: () => void };
     const out: Result[] = [];
 
-    allTasks.slice(0, 50).forEach((t) => {
-      const match = t.title.toLowerCase().includes(s) ||
-        (t.description ?? "").toLowerCase().includes(s);
+    // Tarefas — sem slice antes do filtro (bug fix)
+    allTasks.forEach((t) => {
+      const match =
+        t.title.toLowerCase().includes(s) ||
+        (t.description ?? "").toLowerCase().includes(s) ||
+        t.task_tags?.some((tt: { tag: string }) => tt.tag.toLowerCase().includes(s));
       if (match) {
         const p = projects.find((x) => x.id === t.project_id);
         out.push({
-          kind: "tarefa", id: t.id, title: t.title, sub: p?.name || "",
+          kind: "tarefa",
+          id: t.id,
+          title: t.title,
+          sub: p?.name || "",
           color: p?.color || colors.textSecondary,
-          onClick: () => { nav({ to: "/projects/$id", params: { id: t.project_id } }); onClose(); },
+          onClick: () => {
+            // Navega para o detalhe da tarefa, não apenas para o projeto
+            if (onOpenTaskDetail) {
+              onOpenTaskDetail(t.id);
+            } else {
+              nav({ to: "/projects/$id", params: { id: t.project_id } });
+            }
+            onClose();
+          },
         });
       }
     });
 
+    // Projetos
     projects.forEach((p) => {
       if (p.name.toLowerCase().includes(s)) {
         out.push({
-          kind: "projeto", id: p.id, title: p.name, sub: "",
+          kind: "projeto",
+          id: p.id,
+          title: p.name,
+          sub: "",
           color: p.color,
           onClick: () => { nav({ to: "/projects/$id", params: { id: p.id } }); onClose(); },
         });
       }
     });
 
+    // Bookmarks
     bookmarks.forEach((b) => {
-      const match = b.title.toLowerCase().includes(s) || b.url.toLowerCase().includes(s) || b.tag.toLowerCase().includes(s);
+      const match =
+        b.title.toLowerCase().includes(s) ||
+        b.url.toLowerCase().includes(s) ||
+        (b.tag ?? "").toLowerCase().includes(s);
       if (match) {
         out.push({
-          kind: "bookmark", id: b.id, title: b.title || hostname(b.url), sub: b.tag || hostname(b.url),
-          color: "#BF5AF2", onClick: () => window.open(b.url, "_blank"),
+          kind: "link",
+          id: b.id,
+          title: b.title || hostname(b.url),
+          sub: b.tag || hostname(b.url),
+          color: "#BF5AF2",
+          onClick: () => { window.open(b.url, "_blank"); onClose(); },
         });
       }
     });
 
-    return out.slice(0, 30);
-  }, [q, allTasks, bookmarks, projects, nav, onClose]);
+    // Anotações (novo)
+    (notes as Array<{ id: string; title: string; body?: string | null; project?: { name: string; color: string } | null }>).forEach((n) => {
+      const match =
+        n.title.toLowerCase().includes(s) ||
+        (n.body ?? "").toLowerCase().includes(s);
+      if (match) {
+        out.push({
+          kind: "nota",
+          id: n.id,
+          title: n.title,
+          sub: n.project?.name || "",
+          color: n.project?.color || "#FFCC00",
+          onClick: () => { nav({ to: "/notes" }); onClose(); },
+        });
+      }
+    });
 
-  // clamp selected index
+    return out.slice(0, 35);
+  }, [q, allTasks, bookmarks, projects, notes, nav, onClose, onOpenTaskDetail]);
+
   const clampedIdx = Math.min(selectedIdx, Math.max(0, results.length - 1));
 
   return (
@@ -89,6 +135,7 @@ export function SearchModal({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: 580,
+          maxWidth: "calc(100vw - 32px)",
           background: "rgba(28,28,30,0.92)",
           backdropFilter: "blur(30px) saturate(1.8)",
           WebkitBackdropFilter: "blur(30px) saturate(1.8)",
@@ -106,7 +153,7 @@ export function SearchModal({ onClose }: { onClose: () => void }) {
           }
         `}</style>
 
-        {/* Search input row */}
+        {/* Search input */}
         <div style={{
           display: "flex",
           alignItems: "center",
@@ -122,7 +169,7 @@ export function SearchModal({ onClose }: { onClose: () => void }) {
             onKeyDown={(e) => {
               if (e.key === "Enter" && results[clampedIdx]) results[clampedIdx].onClick();
             }}
-            placeholder="Buscar tarefas, projetos, bookmarks..."
+            placeholder="Buscar tarefas, projetos, links, anotações..."
             style={{
               flex: 1,
               background: "transparent",

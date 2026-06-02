@@ -1,14 +1,11 @@
 import { useMemo } from "react";
-import { CalendarDays, Check, Calendar } from "lucide-react";
-import { useAllTasks } from "@/lib/queries";
+import { CalendarDays, Check } from "lucide-react";
+import { useAllTasks, useSetTaskStatus } from "@/lib/queries";
 import type { Task } from "@/lib/types";
 import { tagColor } from "@/lib/types";
+import { toIso } from "@/lib/format";
 import { colors, radius, spring } from "@/lib/tokens";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-
-function toIso(date: Date): string {
-  return date.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-}
 
 function formatDayLabel(iso: string): string {
   const date = new Date(iso + "T12:00:00");
@@ -36,12 +33,13 @@ const priorityMap: Record<number, { label: string; color: string }> = {
   3: { label: "P3", color: "var(--hq-p3)" },
 };
 
-function TaskRow({ task }: { task: Task }) {
+function TaskRow({ task, onToggleDone }: { task: Task; onToggleDone: (t: Task) => void }) {
   const tags = task.task_tags ?? [];
   const subtasks = task.subtasks ?? [];
   const doneSubs = subtasks.filter((s) => s.done).length;
   const p = priorityMap[task.priority] ?? priorityMap[2];
   const project = task.project as { name: string; color: string } | undefined;
+  const isDone = task.status === "done";
 
   return (
     <div style={{
@@ -51,16 +49,24 @@ function TaskRow({ task }: { task: Task }) {
       borderRadius: radius.md,
       border: `1px solid var(--hq-card-border)`,
       marginBottom: 6,
+      opacity: isDone ? 0.55 : 1,
+      transition: `opacity 0.2s ${spring.gentle}`,
     }}>
-      {/* Status indicator */}
-      <div style={{
-        width: 18, height: 18, borderRadius: 9, flexShrink: 0, marginTop: 2,
-        border: `1.5px solid ${task.status === "done" ? "var(--hq-success)" : "var(--hq-border)"}`,
-        background: task.status === "done" ? "var(--hq-success)" : "transparent",
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
-        {task.status === "done" && <Check size={10} color="#000" strokeWidth={3} />}
-      </div>
+      {/* Checkbox interativo */}
+      <button
+        onClick={() => onToggleDone(task)}
+        title={isDone ? "Reabrir tarefa" : "Marcar como concluída"}
+        style={{
+          width: 18, height: 18, borderRadius: 9, flexShrink: 0, marginTop: 2,
+          border: `1.5px solid ${isDone ? "var(--hq-success)" : "var(--hq-border)"}`,
+          background: isDone ? "var(--hq-success)" : "transparent",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer", padding: 0,
+          transition: `all 0.15s ${spring.gentle}`,
+        }}
+      >
+        {isDone && <Check size={10} color="#000" strokeWidth={3} />}
+      </button>
 
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* Project + priority */}
@@ -121,9 +127,15 @@ function TaskRow({ task }: { task: Task }) {
 
 export function UpcomingView() {
   const isMobile = useIsMobile();
+  const setStatus = useSetTaskStatus();
   const days = useMemo(() => get7Days(), []);
   const todayIso = toIso(new Date());
   const lastIso = days[days.length - 1];
+
+  function handleToggleDone(task: Task) {
+    const newStatus = task.status === "done" ? "todo" : "done";
+    setStatus.mutate({ id: task.id, status: newStatus, projectId: task.project_id });
+  }
 
   const { data: allTasks = [], isLoading } = useAllTasks({ due_start: todayIso, due_end: lastIso });
 
@@ -223,7 +235,7 @@ export function UpcomingView() {
                       Nenhuma tarefa
                     </div>
                   ) : (
-                    dayTasks.map((task) => <TaskRow key={task.id} task={task} />)
+                    dayTasks.map((task) => <TaskRow key={task.id} task={task} onToggleDone={handleToggleDone} />)
                   )}
                 </div>
               );

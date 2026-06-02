@@ -5,7 +5,7 @@
       "name": "pedro-hq-dev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 8081
+      "port": 8080
     }
   ]
 }

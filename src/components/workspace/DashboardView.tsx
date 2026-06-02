@@ -36,7 +36,7 @@ export function DashboardView() {
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 24 }}>Dashboard</h1>
 
       {/* Stat cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 24 }}>
         <StatCard label="Projetos ativos" value={String(stats.totalActiveProjects)} color={colors.accent} />
         <StatCard label="Tarefas pendentes" value={String(stats.totalOpenTasks)} color={colors.info} />
         <StatCard label="Concluídas" value={String(stats.totalDoneTasks)} color={colors.success} />
