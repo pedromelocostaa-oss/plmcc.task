@@ -94,7 +94,7 @@ export function useCreateProject() {
     mutationFn: async (data: { name: string; color: string; description?: string | null; position?: number }): Promise<Project> => {
       const { data: result, error } = await supabase
         .from("projects")
-        .insert({ name: data.name, color: data.color, description: data.description ?? null, position: data.position ?? 0 })
+        .insert({ name: data.name, color: data.color, description: data.description ?? "", position: data.position ?? 0 })
         .select()
         .single();
       if (error) throw error;
