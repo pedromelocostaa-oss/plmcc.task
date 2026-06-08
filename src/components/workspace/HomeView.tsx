@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { showUndoToast } from "@/components/ui/undo-toast";
 import { useProjects, useTasksForDate, useSetTaskStatus, useDeleteTask } from "@/lib/queries";
 import { useQuickAdd } from "@/routes/__root";
+import { WeeklyGoalBanner } from "@/components/workspace/WeeklyGoalBanner";
 import type { Task } from "@/lib/types";
 import { tagColor } from "@/lib/types";
 import { TaskDetailPanel } from "@/components/workspace/TaskDetailPanel";
@@ -1057,6 +1058,7 @@ export function HomeView() {
         ) : (
           <PullToRefresh onRefresh={() => qc.invalidateQueries({ queryKey: ["tasks"] })}>
             <div style={{ padding: "12px 12px 80px" }}>
+              <WeeklyGoalBanner />
               {isLoading ? (
                 <>
                   {Array.from({ length: 4 }, (_, i) => <TaskCardSkeleton key={i} />)}
@@ -1108,40 +1110,47 @@ export function HomeView() {
             <div style={{
               flex: 1,
               display: "flex",
-              gap: 10,
+              flexDirection: "column",
               padding: "14px 14px 14px",
               overflow: "hidden",
               minWidth: 0,
+              gap: 10,
             }}>
-              {isLoading ? (
-                Array.from({ length: 3 }, (_, i) => (
-                  <div key={i} style={{
-                    flex: 1, background: colors.surface, borderRadius: radius.lg,
-                    border: `1px solid ${colors.border}`,
-                    padding: "10px 8px",
-                  }}>
-                    {Array.from({ length: 3 }, (_, j) => <TaskCardSkeleton key={j} />)}
-                  </div>
-                ))
-              ) : (
-                columns.map((col) => (
-                  <KanbanColumn
-                    key={col.status}
-                    config={col}
-                    tasks={col.tasks}
-                    onMove={handleMove}
-                    onOpenDetail={(id) => setDetailTaskId(id)}
-                    draggedTaskId={draggedTaskId}
-                    isDragOver={dragOverColumn === col.status}
-                    onDragOver={(e) => { e.preventDefault(); setDragOverColumn(col.status); }}
-                    onDrop={(e) => { e.preventDefault(); handleDrop(col.status); }}
-                    onDragLeave={() => setDragOverColumn(null)}
-                    onCardDragStart={(id) => setDraggedTaskId(id)}
-                    onCardDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); }}
-                    selectedDate={selectedIso}
-                  />
-                ))
-              )}
+              {/* Objetivo da semana */}
+              <WeeklyGoalBanner />
+
+              {/* Colunas kanban */}
+              <div style={{ flex: 1, display: "flex", gap: 10, overflow: "hidden", minHeight: 0 }}>
+                {isLoading ? (
+                  Array.from({ length: 3 }, (_, i) => (
+                    <div key={i} style={{
+                      flex: 1, background: colors.surface, borderRadius: radius.lg,
+                      border: `1px solid ${colors.border}`,
+                      padding: "10px 8px",
+                    }}>
+                      {Array.from({ length: 3 }, (_, j) => <TaskCardSkeleton key={j} />)}
+                    </div>
+                  ))
+                ) : (
+                  columns.map((col) => (
+                    <KanbanColumn
+                      key={col.status}
+                      config={col}
+                      tasks={col.tasks}
+                      onMove={handleMove}
+                      onOpenDetail={(id) => setDetailTaskId(id)}
+                      draggedTaskId={draggedTaskId}
+                      isDragOver={dragOverColumn === col.status}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverColumn(col.status); }}
+                      onDrop={(e) => { e.preventDefault(); handleDrop(col.status); }}
+                      onDragLeave={() => setDragOverColumn(null)}
+                      onCardDragStart={(id) => setDraggedTaskId(id)}
+                      onCardDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); }}
+                      selectedDate={selectedIso}
+                    />
+                  ))
+                )}
+              </div>
             </div>
           )}
 
