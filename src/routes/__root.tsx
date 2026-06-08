@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
 import { Toaster } from "sonner";
-import { createContext, useContext, useState, useEffect, Suspense, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, Suspense, type ReactNode } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { QuickAddModal } from "@/components/workspace/QuickAddModal";
@@ -219,16 +219,31 @@ function RouteLoadingFallback() {
 
 function OfflineBanner() {
   const online = useOnline();
-  if (online) return null;
+  const [dismissed, setDismissed] = useState(false);
+
+  // Reseta o dismiss quando voltar online
+  useEffect(() => { if (online) setDismissed(false); }, [online]);
+
+  if (online || dismissed) return null;
+
   return (
     <div style={{
       position: "fixed", top: "var(--hq-safe-top)", left: 0, right: 0,
-      zIndex: 270, padding: "6px 14px",
+      zIndex: 270, padding: "6px 16px",
       background: "#FF9F0A",
       color: "#000", fontSize: 12, fontWeight: 600,
       textAlign: "center", letterSpacing: "-0.005em",
+      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
     }}>
-      Sem conexão · mudanças serão sincronizadas quando voltar online
+      <span>Sem conexão · mudanças serão sincronizadas quando voltar online</span>
+      <button
+        onClick={() => setDismissed(true)}
+        style={{
+          background: "rgba(0,0,0,0.15)", border: "none", borderRadius: 4,
+          color: "#000", cursor: "pointer", fontSize: 11, fontWeight: 700,
+          padding: "1px 7px", marginLeft: 4,
+        }}
+      >✕</button>
     </div>
   );
 }
