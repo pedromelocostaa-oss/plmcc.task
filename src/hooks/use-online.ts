@@ -15,13 +15,17 @@ async function ping(): Promise<boolean> {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), PING_TIMEOUT);
     const res = await fetch(PING_URL, {
-      method: "HEAD",
+      // IMPORTANTE: usar GET, não HEAD — o gateway do Supabase responde 503
+      // (Service Unavailable) para requisições HEAD em /rest/v1/, mesmo com o
+      // projeto saudável. GET retorna 401 normalmente (sem auth), provando que
+      // o servidor está de pé. Usar HEAD fazia o app se achar "offline" sempre.
+      method: "GET",
       signal: ctrl.signal,
       cache: "no-store",
       headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "" },
     });
     clearTimeout(t);
-    // 401 = servidor respondeu mas sem auth (esperado para HEAD sem token de usuário)
+    // 401/400 = servidor respondeu (vivo), só não autenticado — consideramos online
     return res.ok || res.status === 401 || res.status === 400;
   } catch {
     return false;
