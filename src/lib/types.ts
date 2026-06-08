@@ -2,7 +2,7 @@ export type Project = {
   id: string;
   name: string;
   color: string;
-  description?: string | null;
+  description?: string;
   archived: boolean;
   position: number;
   created_at: string;
