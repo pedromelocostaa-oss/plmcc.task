@@ -1,18 +1,16 @@
 import { useState, useEffect, useRef } from "react";
-import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { X, CheckSquare, Link as LinkIcon, FileText, ShoppingCart, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
 import {
   useProjects, useCreateTask, useCreateBookmark,
-  useCreateNote, useCreatePurchase, useCreateSubtask,
+  useCreateNote, useCreatePurchase,
 } from "@/lib/queries";
-import { todayIso } from "@/lib/format";
 import { colors, spring, radius } from "@/lib/tokens";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
 type Tab = "task" | "bookmark" | "note" | "purchase";
 
-interface Props { onClose: () => void; defaultTab?: Tab; }
+interface Props { onClose: () => void; defaultTab?: Tab; defaultStatus?: "todo" | "doing"; }
 
 const PRIORITIES = [
   { value: 1, label: "P1", color: "var(--hq-p1)", bg: "var(--hq-p1-bg)", desc: "Urgente" },
@@ -36,28 +34,30 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "purchase", label: "Compra",  icon: <ShoppingCart size={13} /> },
 ];
 
+function todayIso(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
 interface Subtask {
   id: string;
   title: string;
 }
 
-export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
+export function QuickAddModal({ onClose, defaultTab = "task", defaultStatus = "todo" }: Props) {
   const [tab, setTab] = useState<Tab>(defaultTab);
   const { data: projects = [] } = useProjects();
   const createTask = useCreateTask();
-  const createSubtask = useCreateSubtask();
   const createBookmark = useCreateBookmark();
   const createNote = useCreateNote();
   const createPurchase = useCreatePurchase();
   const isMobile = useIsMobile();
-  const dialogRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(dialogRef);
 
   // Task form
   const [taskTitle, setTaskTitle] = useState("");
   const [taskProject, setTaskProject] = useState("");
   const [taskDate, setTaskDate] = useState(todayIso());
   const [taskPriority, setTaskPriority] = useState<1 | 2 | 3>(2);
+  const [taskStatus, setTaskStatus] = useState<"todo" | "doing">(defaultStatus);
   const [taskRecurrence, setTaskRecurrence] = useState<"" | "daily" | "weekly" | "monthly">("");
   const [taskDesc, setTaskDesc] = useState("");
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
@@ -85,13 +85,10 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
 
   const subtaskInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-select first active project (respects last-used via localStorage)
   useEffect(() => {
     if (taskProject || projects.length === 0) return;
-    const lastUsed = (() => { try { return localStorage.getItem("hq-last-project"); } catch { return null; } })();
-    const active = projects.filter((p) => !p.archived);
-    const pick = active.find((p) => p.id === lastUsed) ?? active[0];
-    if (pick) setTaskProject(pick.id);
+    const blis = projects.find((p) => p.name.toLowerCase().includes("blis"));
+    setTaskProject((blis ?? projects[0]).id);
   }, [projects, taskProject]);
 
   useEffect(() => {
@@ -121,38 +118,20 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
     e.preventDefault();
     if (!taskTitle.trim() || !taskProject) return;
     try {
-      // Save last-used project
-      try { localStorage.setItem("hq-last-project", taskProject); } catch {}
-
-      const task = await createTask.mutateAsync({
+      await createTask.mutateAsync({
         title: taskTitle.trim(),
         project_id: taskProject,
         due_date: taskDate || null,
         priority: taskPriority,
         description: taskDesc.trim() || null,
-        status: "todo",
+        status: taskStatus,
         recurrence: taskRecurrence || null,
       });
-
-      // P0 fix: save subtasks that were filled in
-      if (subtasks.length > 0) {
-        await Promise.all(
-          subtasks.map((st, i) =>
-            createSubtask.mutateAsync({
-              taskId: task.id,
-              title: st.title,
-              projectId: taskProject,
-              position: i,
-            })
-          )
-        );
-      }
-
       toast.success("Tarefa criada!");
       setTaskRecurrence("");
       onClose();
-    } catch (err) {
-      toast.error((err as { message?: string })?.message ?? "Erro ao criar tarefa");
+    } catch {
+      toast.error("Erro ao criar tarefa");
     }
   }
 
@@ -291,7 +270,7 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
           to { opacity:1; transform:scale(1) translateY(0); }
         }
       `}</style>
-      <div ref={dialogRef} onClick={(e) => e.stopPropagation()} style={innerStyle} role="dialog" aria-modal="true">
+      <div onClick={(e) => e.stopPropagation()} style={innerStyle}>
 
         {/* iOS drag handle (mobile) */}
         {isMobile && (
@@ -511,6 +490,41 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
                       padding: "4px 0",
                     }}
                   />
+                </div>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label style={labelStyle}>Status inicial</label>
+                <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                  {([
+                    { value: "todo",  label: "A fazer",  dot: colors.textSecondary },
+                    { value: "doing", label: "Fazendo",  dot: colors.warning },
+                  ] as const).map((s) => (
+                    <button
+                      key={s.value}
+                      type="button"
+                      onClick={() => setTaskStatus(s.value)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        padding: "5px 12px", borderRadius: radius.sm, cursor: "pointer",
+                        background: taskStatus === s.value ? "var(--hq-inlay-bg)" : "transparent",
+                        border: taskStatus === s.value
+                          ? `1.5px solid ${s.dot}60`
+                          : `1px solid var(--hq-border)`,
+                        color: taskStatus === s.value ? colors.text : colors.textSecondary,
+                        fontSize: 12, fontWeight: taskStatus === s.value ? 600 : 400,
+                        transition: `all 0.15s ${spring.gentle}`,
+                      }}
+                    >
+                      <span style={{
+                        width: 7, height: 7, borderRadius: "50%",
+                        background: taskStatus === s.value ? s.dot : colors.textMuted,
+                        flexShrink: 0,
+                      }} />
+                      {s.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 

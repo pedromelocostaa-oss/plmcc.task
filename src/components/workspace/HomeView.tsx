@@ -1,25 +1,13 @@
-import { useState, useMemo } from "react";
-import { TaskCardSkeleton } from "@/components/ui/skeleton-card";
-import { useLongPress } from "@/hooks/use-long-press";
-import { SwipeableCard } from "@/components/workspace/SwipeableCard";
-import { PullToRefresh } from "@/components/ui/pull-to-refresh";
-import { haptics } from "@/lib/haptics";
-import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useMemo, useRef } from "react";
+import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2, Plus, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { showUndoToast } from "@/components/ui/undo-toast";
-import { useProjects, useTasksForDate, useSetTaskStatus, useDeleteTask } from "@/lib/queries";
-import { useQuickAdd } from "@/routes/__root";
-import { WeeklyGoalBanner } from "@/components/workspace/WeeklyGoalBanner";
+import { useProjects, useTasksForDate, useSetTaskStatus, useCreateTask } from "@/lib/queries";
 import type { Task } from "@/lib/types";
-import { tagColor } from "@/lib/types";
-import { TaskDetailPanel } from "@/components/workspace/TaskDetailPanel";
 import { colors, spring, radius } from "@/lib/tokens";
 import { DayCalendar, fetchCalendarEvents } from "@/components/workspace/DayCalendar";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-import { useResizable } from "@/hooks/use-resizable";
 import type { CalendarEvent } from "@/lib/calendar-api";
-import { Route } from "@/routes/index";
 
 // ── date helpers ─────────────────────────────────────────────────────────────
 
@@ -57,49 +45,6 @@ function getWeekDays(referenceDate: Date): Date[] {
     day.setDate(monday.getDate() + i);
     return day;
   });
-}
-
-// ── greeting ─────────────────────────────────────────────────────────────────
-
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h < 6) return "Boa madrugada";
-  if (h < 12) return "Bom dia";
-  if (h < 18) return "Boa tarde";
-  return "Boa noite";
-}
-
-// ── ProgressRing ──────────────────────────────────────────────────────────────
-
-function ProgressRing({ value, size = 52 }: { value: number; size?: number }) {
-  const stroke = 4;
-  const r = (size - stroke) / 2;
-  const circ = 2 * Math.PI * r;
-  const offset = circ * (1 - Math.max(0, Math.min(1, value)));
-  const done = value >= 1;
-  return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-        <circle cx={size/2} cy={size/2} r={r} stroke="var(--hq-border)" strokeWidth={stroke} fill="none" />
-        <circle cx={size/2} cy={size/2} r={r}
-          stroke={done ? "var(--hq-success)" : "var(--hq-accent)"}
-          strokeWidth={stroke} fill="none"
-          strokeDasharray={circ} strokeDashoffset={offset}
-          strokeLinecap="round"
-          style={{ transition: "stroke-dashoffset 480ms cubic-bezier(0.2,0.85,0.25,1), stroke 240ms" }}
-        />
-      </svg>
-      <span style={{
-        position: "absolute", inset: 0, display: "grid", placeItems: "center",
-        fontSize: size <= 44 ? 11 : 12, fontWeight: 700,
-        fontFamily: '"SF Mono", ui-monospace, monospace',
-        color: done ? "var(--hq-success)" : "var(--hq-text)",
-        fontVariantNumeric: "tabular-nums",
-      }}>
-        {Math.round(Math.max(0, Math.min(1, value)) * 100)}%
-      </span>
-    </div>
-  );
 }
 
 const DAY_ABBR = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -228,67 +173,22 @@ const COLUMNS: { status: Task["status"]; label: string; accent: string; accentBg
   { status: "done",  label: "Concluído", accent: colors.success,       accentBg: "rgba(48,209,88,0.12)" },
 ];
 
-// ── InlineAdd ─────────────────────────────────────────────────────────────────
-// Abre o QuickAddModal completo (projeto, prazo, prioridade, descrição, subtarefas)
-
-function InlineAdd({ columnAccent }: { columnAccent: string }) {
-  const { openQuickAdd } = useQuickAdd();
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <button
-      onClick={() => openQuickAdd("task")}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: "100%",
-        margin: "4px 0 8px",
-        borderRadius: 8,
-        border: `1px dashed ${hovered ? columnAccent : "var(--hq-border)"}`,
-        background: hovered ? `${columnAccent}0D` : "transparent",
-        padding: "7px 10px",
-        fontSize: 12.5,
-        color: hovered ? columnAccent : "var(--hq-text-muted)",
-        cursor: "pointer",
-        textAlign: "left",
-        transition: "all 150ms",
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-      }}
-    >
-      <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
-      Adicionar tarefa
-    </button>
-  );
-}
-
 // ── KanbanCard ────────────────────────────────────────────────────────────────
 
 function KanbanCard({
   task,
   onMove,
-  onOpenDetail,
   onDragStart,
   onDragEnd,
   isDragging,
-  isMobile: isMobileProp,
 }: {
   task: Task;
   onMove: (status: Task["status"]) => void;
-  onOpenDetail?: () => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
   isDragging?: boolean;
-  isMobile?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [cardHovered, setCardHovered] = useState(false);
-
-  const longPressHandlers = useLongPress({
-    threshold: 450,
-    onLongPress: () => { if (onOpenDetail) onOpenDetail(); },
-  });
   const project = task.project as { name: string; color: string } | undefined;
   const tags = task.task_tags ?? [];
   const subtasks = task.subtasks ?? [];
@@ -309,18 +209,14 @@ function KanbanCard({
 
   return (
     <div
-      draggable={!isMobileProp}
+      draggable
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "move";
         e.dataTransfer.setData("text/plain", task.id);
         onDragStart?.();
       }}
       onDragEnd={onDragEnd}
-      onMouseEnter={() => setCardHovered(true)}
-      onMouseLeave={() => setCardHovered(false)}
-      {...(isMobileProp && onOpenDetail ? longPressHandlers : {})}
       style={{
-        position: "relative",
         background: expanded ? colors.surfaceRaised : colors.cardBg,
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
@@ -340,24 +236,6 @@ function KanbanCard({
       }}
       onClick={() => hasDetails && setExpanded((v) => !v)}
     >
-      {/* Quick complete button */}
-      <button
-        onClick={(e) => { e.stopPropagation(); haptics.success(); onMove(task.status === "done" ? "todo" : "done"); }}
-        style={{
-          position: "absolute", top: 8, right: 8,
-          width: 20, height: 20, borderRadius: "50%",
-          border: `1.5px solid ${task.status === "done" ? "var(--hq-success)" : "var(--hq-border)"}`,
-          background: task.status === "done" ? "var(--hq-success)" : "transparent",
-          cursor: "pointer", padding: 0,
-          display: "grid", placeItems: "center",
-          opacity: cardHovered || task.status === "done" ? 1 : 0,
-          transition: "opacity 120ms",
-          zIndex: 2,
-        }}
-      >
-        {task.status === "done" && <Check size={11} color="#fff" strokeWidth={3} />}
-      </button>
-
       {/* Card body */}
       <div style={{ padding: "10px 12px" }}>
         {/* Project + priority row */}
@@ -376,22 +254,6 @@ function KanbanCard({
             padding: "1px 5px", borderRadius: 4,
             flexShrink: 0, letterSpacing: "0.04em",
           }}>{p.label}</span>
-          {onOpenDetail && cardHovered && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onOpenDetail(); }}
-              title="Abrir detalhes"
-              style={{
-                background: "var(--hq-inlay-bg)", border: `1px solid var(--hq-border)`,
-                borderRadius: 4, color: colors.textSecondary, cursor: "pointer",
-                padding: "1px 4px", display: "inline-flex", alignItems: "center",
-                flexShrink: 0,
-              }}
-            >
-              <ArrowRight size={10} />
-            </button>
-          )}
-          <span style={{ flex: 1 }} />
-          <span style={{ width: 24 }} />{/* space for quick-complete button */}
         </div>
 
         {/* Title */}
@@ -426,15 +288,12 @@ function KanbanCard({
               <AlignLeft size={9} />
             </span>
           )}
-          {tags.slice(0, 2).map((t) => {
-            const tc = tagColor(t.tag);
-            return (
-              <span key={t.id} style={{
-                fontSize: 9, padding: "1px 5px", borderRadius: "99px",
-                background: `${tc}22`, color: tc,
-              }}>{t.tag}</span>
-            );
-          })}
+          {tags.slice(0, 2).map((t) => (
+            <span key={t.id} style={{
+              fontSize: 9, padding: "1px 5px", borderRadius: "99px",
+              background: "rgba(191,90,242,0.15)", color: "#BF5AF2",
+            }}>{t.tag}</span>
+          ))}
           {hasDetails && (
             <span style={{ marginLeft: "auto", color: expanded ? p.color : colors.textMuted, transition: `color 0.2s` }}>
               {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -557,20 +416,17 @@ function KanbanCard({
                 </span>
               </div>
               <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {tags.map((t) => {
-                  const tc = tagColor(t.tag);
-                  return (
-                    <span key={t.id} style={{
-                      fontSize: 11, padding: "3px 8px", borderRadius: "99px",
-                      background: `${tc}22`,
-                      border: `1px solid ${tc}40`,
-                      color: tc,
-                      display: "flex", alignItems: "center", gap: 4,
-                    }}>
-                      <Tag size={8} />{t.tag}
-                    </span>
-                  );
-                })}
+                {tags.map((t) => (
+                  <span key={t.id} style={{
+                    fontSize: 11, padding: "3px 8px", borderRadius: "99px",
+                    background: "rgba(191,90,242,0.15)",
+                    border: "1px solid rgba(191,90,242,0.25)",
+                    color: "#BF5AF2",
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}>
+                    <Tag size={8} />{t.tag}
+                  </span>
+                ))}
               </div>
             </div>
           )}
@@ -612,7 +468,9 @@ function KanbanCard({
 function KanbanColumn({
   config, tasks, onMove, draggedTaskId,
   onDragOver, onDrop, onDragLeave, isDragOver,
-  onCardDragStart, onCardDragEnd, selectedDate, onOpenDetail,
+  onCardDragStart, onCardDragEnd,
+  isAdding, onStartAdd, onCancelAdd, onTaskCreated,
+  projects,
 }: {
   config: typeof COLUMNS[number];
   tasks: Task[];
@@ -624,9 +482,14 @@ function KanbanColumn({
   isDragOver: boolean;
   onCardDragStart: (id: string) => void;
   onCardDragEnd: () => void;
-  selectedDate: string;
-  onOpenDetail?: (id: string) => void;
+  isAdding: boolean;
+  onStartAdd: () => void;
+  onCancelAdd: () => void;
+  onTaskCreated: () => void;
+  projects: { id: string; name: string; color: string; archived: boolean }[];
 }) {
+  const canAdd = config.status !== "done";
+
   return (
     <div
       onDragOver={onDragOver}
@@ -669,11 +532,36 @@ function KanbanColumn({
         }}>
           {tasks.length}
         </span>
+        {canAdd && (
+          <button
+            onClick={isAdding ? onCancelAdd : onStartAdd}
+            title={isAdding ? "Cancelar" : `Adicionar em ${config.label}`}
+            style={{
+              background: "transparent", border: "none",
+              color: isAdding ? colors.danger : colors.textMuted,
+              cursor: "pointer", padding: 2, borderRadius: 4,
+              display: "flex", alignItems: "center",
+              transition: `color 0.15s`,
+            }}
+          >
+            {isAdding ? <X size={13} /> : <Plus size={13} />}
+          </button>
+        )}
       </div>
 
+      {/* Inline add form */}
+      {isAdding && (
+        <ColumnAddForm
+          status={config.status as "todo" | "doing"}
+          projects={projects}
+          onCreated={onTaskCreated}
+          onCancel={onCancelAdd}
+        />
+      )}
+
       {/* Cards */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px 4px" }}>
-        {tasks.length === 0 && (
+      <div style={{ flex: 1, overflowY: "auto", padding: "10px 8px 12px" }}>
+        {tasks.length === 0 && !isAdding && (
           <div style={{
             textAlign: "center", padding: "24px 8px",
             color: colors.textMuted, fontSize: 12,
@@ -687,32 +575,146 @@ function KanbanColumn({
             key={t.id}
             task={t}
             onMove={(status) => onMove(t.id, status)}
-            onOpenDetail={onOpenDetail ? () => onOpenDetail(t.id) : undefined}
             isDragging={draggedTaskId === t.id}
             onDragStart={() => onCardDragStart(t.id)}
             onDragEnd={onCardDragEnd}
           />
         ))}
-
-        {/* Inline add at bottom of column */}
-        <InlineAdd columnAccent={config.accent} />
       </div>
     </div>
+  );
+}
+
+// ── ColumnAddForm ─────────────────────────────────────────────────────────────
+
+function ColumnAddForm({
+  status, projects, onCreated, onCancel,
+}: {
+  status: "todo" | "doing";
+  projects: { id: string; name: string; color: string; archived: boolean }[];
+  onCreated: () => void;
+  onCancel: () => void;
+}) {
+  const createTask = useCreateTask();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const activeProjects = projects.filter((p) => !p.archived);
+  const [title, setTitle] = useState("");
+  const [projectId, setProjectId] = useState(() => activeProjects[0]?.id ?? "");
+
+  // Auto-focus when form appears
+  const focusRef = useRef(false);
+  if (!focusRef.current) {
+    focusRef.current = true;
+    setTimeout(() => inputRef.current?.focus(), 30);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim() || !projectId) return;
+    try {
+      await createTask.mutateAsync({
+        title: title.trim(),
+        project_id: projectId,
+        status,
+        priority: 2,
+        due_date: null,
+        description: null,
+      });
+      toast.success("Tarefa criada!");
+      setTitle("");
+      onCreated();
+    } catch {
+      toast.error("Erro ao criar tarefa");
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      style={{
+        borderBottom: "1px solid rgba(84,84,88,0.20)",
+        padding: "10px 10px 12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        background: "rgba(84,84,88,0.06)",
+        flexShrink: 0,
+      }}
+    >
+      <input
+        ref={inputRef}
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Escape") onCancel(); }}
+        placeholder="Título da tarefa..."
+        style={{
+          background: colors.surface,
+          border: `1px solid ${colors.border}`,
+          borderRadius: radius.sm,
+          color: colors.text,
+          padding: "7px 10px",
+          fontSize: 13,
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      />
+      {activeProjects.length > 1 && (
+        <select
+          value={projectId}
+          onChange={(e) => setProjectId(e.target.value)}
+          style={{
+            background: colors.surface,
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.sm,
+            color: colors.text,
+            padding: "5px 8px",
+            fontSize: 12,
+            width: "100%",
+          }}
+        >
+          {activeProjects.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+      )}
+      <div style={{ display: "flex", gap: 6 }}>
+        <button
+          type="submit"
+          disabled={!title.trim() || !projectId || createTask.isPending}
+          style={{
+            flex: 1,
+            background: colors.accent, color: "#0d1117",
+            border: "none", borderRadius: radius.sm,
+            padding: "6px 10px", fontSize: 12, fontWeight: 600,
+            cursor: createTask.isPending ? "wait" : "pointer",
+            opacity: !title.trim() || !projectId ? 0.5 : 1,
+          }}
+        >
+          {createTask.isPending ? "…" : "Criar"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{
+            background: "transparent",
+            border: `1px solid ${colors.border}`,
+            borderRadius: radius.sm,
+            color: colors.textSecondary,
+            padding: "6px 10px", fontSize: 12, cursor: "pointer",
+          }}
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
   );
 }
 
 // ── HomeView ──────────────────────────────────────────────────────────────────
 
 export function HomeView() {
-  const { date: searchDate } = Route.useSearch();
   const { data: projects = [] } = useProjects();
-  const [selectedDate, setSelectedDate] = useState<Date>(() => {
-    if (searchDate) {
-      const d = new Date(searchDate + "T12:00:00");
-      if (!isNaN(d.getTime())) return d;
-    }
-    return new Date();
-  });
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [projectFilter, setProjectFilter] = useState<string | null>(null);
   const [sortByPriority, setSortByPriority] = useState(false);
   const [mobileColumn, setMobileColumn] = useState<Task["status"]>("todo");
@@ -721,15 +723,9 @@ export function HomeView() {
   const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<Task["status"] | null>(null);
-  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
+  const [addingInColumn, setAddingInColumn] = useState<Task["status"] | null>(null);
   const isMobile = useIsMobile();
   const setStatus = useSetTaskStatus();
-  const deleteTask = useDeleteTask();
-  const qc = useQueryClient();
-
-  const { width: agendaWidth, startResize, resetWidth } = useResizable({
-    min: 280, max: 700, defaultValue: 340, storageKey: "hq-agenda-width",
-  });
 
   const selectedIso = toIso(selectedDate);
   const isToday = isTodayDate(selectedDate);
@@ -753,26 +749,13 @@ export function HomeView() {
 
   const totalCount = allTasks.length;
   const doneCount = allTasks.filter((t) => t.status === "done").length;
-  const progressValue = totalCount > 0 ? doneCount / totalCount : 0;
 
   function handleMove(id: string, status: Task["status"]) {
     const task = allTasks.find((t) => t.id === id);
     if (!task) return;
-    const previousStatus = task.status;
     setStatus.mutate(
       { id, status, projectId: task.project_id },
-      {
-        onSuccess: () => {
-          const labels: Record<Task["status"], string> = { todo: "A Fazer", doing: "Fazendo", done: "Concluído" };
-          showUndoToast({
-            title: `Movida para ${labels[status]}`,
-            description: task.title.length > 45 ? task.title.slice(0, 45) + "…" : task.title,
-            iconBg: status === "done" ? "rgba(48,209,88,0.4)" : "rgba(229,132,48,0.4)",
-            undo: () => setStatus.mutate({ id, status: previousStatus, projectId: task.project_id }),
-          });
-        },
-        onError: () => toast.error("Erro ao mover tarefa"),
-      }
+      { onError: () => toast.error("Erro ao mover tarefa") }
     );
   }
 
@@ -790,7 +773,7 @@ export function HomeView() {
   // Calendar panel (shared between mobile and desktop)
   const calendarPanel = (
     <div style={{
-      width: isMobile ? "100%" : calendarExpanded ? "100%" : agendaWidth,
+      width: isMobile ? "100%" : calendarExpanded ? "100%" : 340,
       flexShrink: 0,
       borderLeft: isMobile ? "none" : `1px solid ${colors.separator}`,
       display: "flex",
@@ -892,24 +875,17 @@ export function HomeView() {
           justifyContent: "space-between", marginBottom: 10,
           gap: 8,
         }}>
-          <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 12 }}>
-            {!isMobile && totalCount > 0 && (
-              <ProgressRing value={progressValue} size={48} />
-            )}
-            <div>
-              <h1 style={{
-                fontSize: isMobile ? 20 : 22,
-                fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 1,
-              }}>
-                {isToday ? greeting() : "Meu dia"}
-              </h1>
-              <p style={{ color: colors.textSecondary, fontSize: 11, margin: 0 }}>
-                {isLoading ? "Carregando..." :
-                  totalCount === 0 ? "Nenhuma tarefa neste dia" :
-                  `${doneCount}/${totalCount} concluída${doneCount !== 1 ? "s" : ""}`
-                }
-              </p>
-            </div>
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{
+              fontSize: isMobile ? 20 : 22,
+              fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 1,
+            }}>Meu dia</h1>
+            <p style={{ color: colors.textSecondary, fontSize: 11, margin: 0 }}>
+              {isLoading ? "Carregando..." :
+                totalCount === 0 ? "Nenhuma tarefa neste dia" :
+                `${doneCount}/${totalCount} concluída${doneCount !== 1 ? "s" : ""}`
+              }
+            </p>
           </div>
 
           {/* Date navigator */}
@@ -1056,51 +1032,56 @@ export function HomeView() {
             {calendarPanel}
           </div>
         ) : (
-          <PullToRefresh onRefresh={() => qc.invalidateQueries({ queryKey: ["tasks"] })}>
-            <div style={{ padding: "12px 12px 80px" }}>
-              <WeeklyGoalBanner />
-              {isLoading ? (
-                <>
-                  {Array.from({ length: 4 }, (_, i) => <TaskCardSkeleton key={i} />)}
-                </>
-              ) : (
-                (() => {
-                  const col = columns.find((c) => c.status === mobileColumn);
-                  if (!col) return null;
-                  return (
-                    <>
-                      {col.tasks.length === 0 && (
-                        <div style={{ textAlign: "center", padding: "40px 8px", color: colors.textMuted, fontSize: 13 }}>
-                          {col.status === "done" ? "Nenhuma tarefa concluída" : "Vazio"}
-                        </div>
-                      )}
-                      {col.tasks.map((t) => (
-                        <SwipeableCard
-                          key={t.id}
-                          onSwipeRight={() => handleMove(t.id, "done")}
-                          onSwipeLeft={() => {
-                            deleteTask.mutate(
-                              { id: t.id, projectId: t.project_id },
-                              {
-                                onSuccess: () => showUndoToast({
-                                  title: "Tarefa deletada",
-                                  description: t.title.length > 45 ? t.title.slice(0, 45) + "…" : t.title,
-                                  iconBg: "rgba(255,69,58,0.4)",
-                                  undo: () => {},
-                                }),
-                              }
-                            );
-                          }}
-                        >
-                          <KanbanCard task={t} onMove={(status) => handleMove(t.id, status)} onOpenDetail={() => setDetailTaskId(t.id)} isMobile={isMobile} />
-                        </SwipeableCard>
-                      ))}
-                    </>
-                  );
-                })()
-              )}
-            </div>
-          </PullToRefresh>
+          <div style={{ flex: 1, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "12px 12px 80px" }}>
+            {isLoading ? (
+              <div style={{ background: colors.surface, borderRadius: radius.lg, height: 200, opacity: 0.4 }} />
+            ) : (
+              (() => {
+                const col = columns.find((c) => c.status === mobileColumn);
+                if (!col) return null;
+                const canAdd = col.status !== "done";
+                const isAdding = addingInColumn === col.status;
+                return (
+                  <>
+                    {canAdd && isAdding && (
+                      <div style={{ marginBottom: 10, background: colors.surface, borderRadius: radius.md, overflow: "hidden", border: `1px solid ${colors.border}` }}>
+                        <ColumnAddForm
+                          status={col.status as "todo" | "doing"}
+                          projects={projects}
+                          onCreated={() => setAddingInColumn(null)}
+                          onCancel={() => setAddingInColumn(null)}
+                        />
+                      </div>
+                    )}
+                    {col.tasks.length === 0 && !isAdding && (
+                      <div style={{ textAlign: "center", padding: "40px 8px", color: colors.textMuted, fontSize: 13 }}>
+                        {col.status === "done" ? "Nenhuma tarefa concluída" : "Vazio"}
+                      </div>
+                    )}
+                    {col.tasks.map((t) => (
+                      <KanbanCard key={t.id} task={t} onMove={(status) => handleMove(t.id, status)} />
+                    ))}
+                    {canAdd && !isAdding && (
+                      <button
+                        onClick={() => setAddingInColumn(col.status)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6,
+                          width: "100%", marginTop: 8,
+                          padding: "9px 12px", borderRadius: radius.md,
+                          background: "transparent",
+                          border: `1px dashed ${colors.border}`,
+                          color: colors.textMuted, fontSize: 12,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <Plus size={13} /> Adicionar tarefa
+                      </button>
+                    )}
+                  </>
+                );
+              })()
+            )}
+          </div>
         )
       ) : (
         /* ── DESKTOP: kanban + calendar panel side by side ── */
@@ -1110,59 +1091,40 @@ export function HomeView() {
             <div style={{
               flex: 1,
               display: "flex",
-              flexDirection: "column",
+              gap: 10,
               padding: "14px 14px 14px",
               overflow: "hidden",
               minWidth: 0,
-              gap: 10,
             }}>
-              {/* Objetivo da semana */}
-              <WeeklyGoalBanner />
-
-              {/* Colunas kanban */}
-              <div style={{ flex: 1, display: "flex", gap: 10, overflow: "hidden", minHeight: 0 }}>
-                {isLoading ? (
-                  Array.from({ length: 3 }, (_, i) => (
-                    <div key={i} style={{
-                      flex: 1, background: colors.surface, borderRadius: radius.lg,
-                      border: `1px solid ${colors.border}`,
-                      padding: "10px 8px",
-                    }}>
-                      {Array.from({ length: 3 }, (_, j) => <TaskCardSkeleton key={j} />)}
-                    </div>
-                  ))
-                ) : (
-                  columns.map((col) => (
-                    <KanbanColumn
-                      key={col.status}
-                      config={col}
-                      tasks={col.tasks}
-                      onMove={handleMove}
-                      onOpenDetail={(id) => setDetailTaskId(id)}
-                      draggedTaskId={draggedTaskId}
-                      isDragOver={dragOverColumn === col.status}
-                      onDragOver={(e) => { e.preventDefault(); setDragOverColumn(col.status); }}
-                      onDrop={(e) => { e.preventDefault(); handleDrop(col.status); }}
-                      onDragLeave={() => setDragOverColumn(null)}
-                      onCardDragStart={(id) => setDraggedTaskId(id)}
-                      onCardDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); }}
-                      selectedDate={selectedIso}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Resize handle — between kanban and calendar, desktop only, not expanded */}
-          {!calendarExpanded && (
-            <div
-              onMouseDown={startResize}
-              onDoubleClick={resetWidth}
-              title="Arraste · 2× pra resetar"
-              style={{ width: 7, flexShrink: 0, cursor: "col-resize", display: "flex", alignItems: "center", justifyContent: "center", background: "transparent" }}
-            >
-              <div style={{ width: 3, height: 36, borderRadius: 2, background: "rgba(120,120,128,0.20)" }} />
+              {isLoading ? (
+                Array.from({ length: 3 }, (_, i) => (
+                  <div key={i} style={{
+                    flex: 1, background: colors.surface, borderRadius: radius.lg,
+                    border: `1px solid ${colors.border}`, opacity: 0.4,
+                  }} />
+                ))
+              ) : (
+                columns.map((col) => (
+                  <KanbanColumn
+                    key={col.status}
+                    config={col}
+                    tasks={col.tasks}
+                    onMove={handleMove}
+                    draggedTaskId={draggedTaskId}
+                    isDragOver={dragOverColumn === col.status}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverColumn(col.status); }}
+                    onDrop={(e) => { e.preventDefault(); handleDrop(col.status); }}
+                    onDragLeave={() => setDragOverColumn(null)}
+                    onCardDragStart={(id) => setDraggedTaskId(id)}
+                    onCardDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); }}
+                    isAdding={addingInColumn === col.status}
+                    onStartAdd={() => setAddingInColumn(col.status)}
+                    onCancelAdd={() => setAddingInColumn(null)}
+                    onTaskCreated={() => setAddingInColumn(null)}
+                    projects={projects}
+                  />
+                ))
+              )}
             </div>
           )}
 
@@ -1170,18 +1132,6 @@ export function HomeView() {
           {calendarPanel}
         </div>
       )}
-
-      {/* Task detail panel (slide-over) */}
-      {detailTaskId && (() => {
-        const detailTask = allTasks.find((t) => t.id === detailTaskId);
-        if (!detailTask) return null;
-        return (
-          <TaskDetailPanel
-            task={detailTask}
-            onClose={() => setDetailTaskId(null)}
-          />
-        );
-      })()}
     </div>
   );
 }
