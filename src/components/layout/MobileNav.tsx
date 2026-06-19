@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, ListChecks, BarChart2, ShoppingCart, Plus } from "lucide-react";
 import { useQuickAdd } from "@/routes/__root";
 import { colors, spring } from "@/lib/tokens";
+import { PlmccWordmark } from "@/components/ui/PlmccLogo";
 
 type TabDef = { to: string; icon: React.ComponentType<{ size: number; strokeWidth: number }>; label: string };
 
@@ -42,7 +43,7 @@ export function MobileNav() {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-around",
-        paddingBottom: "max(8px, var(--hq-safe-bottom))",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
         paddingLeft: "env(safe-area-inset-left, 0px)",
         paddingRight: "env(safe-area-inset-right, 0px)",
         height: "calc(56px + env(safe-area-inset-bottom, 0px))",
@@ -144,5 +145,34 @@ export function MobileNav() {
         );
       })}
     </nav>
+  );
+}
+
+// ─── MobileHeader ────────────────────────────────────────────────────────────
+
+export function MobileHeader() {
+  return (
+    <header
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 99,
+        height: "calc(52px + env(safe-area-inset-top, 0px))",
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        background: "rgba(18,18,18,0.88)",
+        backdropFilter: "blur(40px) saturate(1.8)",
+        WebkitBackdropFilter: "blur(40px) saturate(1.8)",
+        borderBottom: `1px solid rgba(84,84,88,0.45)`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingLeft: "env(safe-area-inset-left, 0px)",
+        paddingRight: "env(safe-area-inset-right, 0px)",
+      }}
+    >
+      <PlmccWordmark size={28} color="var(--brand-amber)" />
+    </header>
   );
 }
