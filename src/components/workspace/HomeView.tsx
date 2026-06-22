@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2, Plus, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -596,17 +596,9 @@ function ColumnAddForm({
   onCancel: () => void;
 }) {
   const createTask = useCreateTask();
-  const inputRef = useRef<HTMLInputElement>(null);
   const activeProjects = projects.filter((p) => !p.archived);
   const [title, setTitle] = useState("");
   const [projectId, setProjectId] = useState(() => activeProjects[0]?.id ?? "");
-
-  // Auto-focus when form appears
-  const focusRef = useRef(false);
-  if (!focusRef.current) {
-    focusRef.current = true;
-    setTimeout(() => inputRef.current?.focus(), 30);
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -642,7 +634,7 @@ function ColumnAddForm({
       }}
     >
       <input
-        ref={inputRef}
+        autoFocus
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Escape") onCancel(); }}
