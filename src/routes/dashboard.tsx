@@ -5,4 +5,7 @@ const DashboardView = lazy(() =>
   import("@/components/workspace/DashboardView").then((m) => ({ default: m.DashboardView }))
 );
 
-export const Route = createFileRoute("/dashboard")({ component: DashboardView });
+export const Route = createFileRoute("/dashboard")({
+  component: DashboardView,
+  head: () => ({ meta: [{ title: "Dashboard · Pedro's HQ" }] }),
+});

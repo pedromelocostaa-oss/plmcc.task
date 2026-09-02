@@ -5,4 +5,7 @@ const PurchasesView = lazy(() =>
   import("@/components/workspace/PurchasesView").then((m) => ({ default: m.PurchasesView }))
 );
 
-export const Route = createFileRoute("/purchases")({ component: PurchasesView });
+export const Route = createFileRoute("/purchases")({
+  component: PurchasesView,
+  head: () => ({ meta: [{ title: "Compras · Pedro's HQ" }] }),
+});

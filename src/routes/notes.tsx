@@ -5,4 +5,7 @@ const NotesView = lazy(() =>
   import("@/components/workspace/NotesView").then((m) => ({ default: m.NotesView }))
 );
 
-export const Route = createFileRoute("/notes")({ component: NotesView });
+export const Route = createFileRoute("/notes")({
+  component: NotesView,
+  head: () => ({ meta: [{ title: "Anotações · Pedro's HQ" }] }),
+});

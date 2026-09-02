@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Trash2, Tag, Check, Plus, AlignLeft, Calendar, ChevronUp, ChevronDown } from "lucide-react";
 import type { Task } from "@/lib/types";
-import { tagColor } from "@/lib/types";
+import { tagColor } from "@/lib/format";
 import {
   useUpdateTask,
   useDeleteTask,
@@ -48,6 +48,7 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   const [descVal, setDescVal] = useState(task.description ?? "");
   const [dueDate, setDueDate] = useState(task.due_date ?? "");
   const [priority, setPriority] = useState<1 | 2 | 3>(task.priority);
+  const [status, setStatus] = useState<Task["status"]>(task.status ?? "backlog");
 
   // Subtask input
   const [subtaskVal, setSubtaskVal] = useState("");
@@ -112,6 +113,11 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
   function savePriority(p: 1 | 2 | 3) {
     setPriority(p);
     updateTask.mutate({ id: task.id, data: { priority: p } });
+  }
+
+  function saveStatus(s: Task["status"]) {
+    setStatus(s);
+    updateTask.mutate({ id: task.id, data: { status: s } });
   }
 
   function handleAddSubtask() {
@@ -336,6 +342,41 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
                 colorScheme: "dark",
               }}
             />
+          </div>
+
+          {/* Status */}
+          <div style={{ padding: "12px 16px", borderBottom: `1px solid var(--hq-border)`, display: "flex", alignItems: "center", gap: 10 }}>
+            <ChevronUp size={13} color="var(--hq-text-muted)" />
+            <span style={{ fontSize: 12, color: "var(--hq-text-muted)", minWidth: 60 }}>Status</span>
+            <div style={{ display: "flex", gap: 5 }}>
+              {([
+                { value: "backlog" as const, label: "Backlog",        color: "var(--hq-text-muted)",       border: "var(--hq-border)",          bg: "transparent" },
+                { value: "todo" as const,    label: "A fazer no dia", color: "var(--hq-info)",             border: "rgba(10,132,255,0.30)",     bg: "rgba(10,132,255,0.10)" },
+                { value: "doing" as const,   label: "Fazendo",        color: "var(--hq-accent)",           border: "var(--hq-accent-border)",   bg: "var(--hq-accent-bg)" },
+                { value: "waiting" as const, label: "Aguardando",     color: "var(--hq-purple, #BF5AF2)",  border: "rgba(191,90,242,0.30)",     bg: "rgba(191,90,242,0.10)" },
+                { value: "done" as const,    label: "Finalizado",     color: "var(--hq-success)",          border: "rgba(48,209,88,0.30)",      bg: "rgba(48,209,88,0.10)" },
+              ]).map((s) => {
+                const active = status === s.value;
+                return (
+                  <button
+                    key={s.value}
+                    onClick={() => saveStatus(s.value)}
+                    style={{
+                      padding: "3px 10px",
+                      background: active ? s.bg : "transparent",
+                      border: `1px solid ${active ? s.border : "var(--hq-border)"}`,
+                      borderRadius: radius.sm,
+                      color: active ? s.color : "var(--hq-text-muted)",
+                      cursor: "pointer",
+                      fontSize: 11, fontWeight: active ? 700 : 400,
+                      transition: "all 120ms",
+                    }}
+                  >
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Description */}

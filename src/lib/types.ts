@@ -37,7 +37,7 @@ export type Task = {
   project_id: string;
   title: string;
   description: string;
-  status: 'todo' | 'doing' | 'done';
+  status: 'backlog' | 'todo' | 'doing' | 'waiting' | 'done';
   priority: 1 | 2 | 3;
   due_date: string | null;
   position?: number;
@@ -91,11 +91,3 @@ export const TAG_PALETTE = [
   '#a855f7', '#ec4899', '#06b6d4', '#84cc16',
 ];
 
-export function tagColor(tag: string): string {
-  let hash = 0;
-  for (let i = 0; i < tag.length; i++) {
-    hash = (hash << 5) - hash + tag.charCodeAt(i);
-    hash |= 0;
-  }
-  return TAG_PALETTE[Math.abs(hash) % TAG_PALETTE.length];
-}

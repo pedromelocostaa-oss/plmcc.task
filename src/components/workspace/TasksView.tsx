@@ -60,7 +60,7 @@ export function TasksView() {
         project_id: newProjectId,
         priority: newPriority,
         due_date: newDue || null,
-        status: "todo",
+        status: "backlog",
       });
       toast.success("Tarefa criada");
       setNewTitle(""); setNewDue(""); setShowAddForm(false);
@@ -130,9 +130,11 @@ export function TasksView() {
         {/* Status */}
         <FilterGroup label="Status" value={statusFilter} onChange={(v) => setStatusFilter(v as typeof statusFilter)} options={[
           { value: "all", label: "Todos" },
-          { value: "todo", label: "A fazer" },
-          { value: "doing", label: "Em andamento" },
-          { value: "done", label: "Concluída" },
+          { value: "backlog", label: "Backlog" },
+          { value: "todo", label: "A fazer no dia" },
+          { value: "doing", label: "Fazendo" },
+          { value: "waiting", label: "Aguardando" },
+          { value: "done", label: "Finalizado" },
         ]} />
 
         <div style={{ width: 1, height: 24, background: colors.border }} />
@@ -234,8 +236,8 @@ function AllTaskCard({
 
       <button onClick={onCycle} style={{
         width: 16, height: 16, borderRadius: 8, marginTop: 3, flexShrink: 0,
-        border: `1.5px solid ${isDone ? colors.success : task.status === "doing" ? colors.warning : colors.border}`,
-        background: isDone ? colors.success : task.status === "doing" ? "rgba(210,153,34,0.2)" : "transparent",
+        border: `1.5px solid ${isDone ? colors.success : task.status === "doing" ? colors.warning : task.status === "waiting" ? colors.purple : task.status === "todo" ? colors.info : colors.border}`,
+        background: isDone ? colors.success : task.status === "doing" ? "rgba(210,153,34,0.2)" : task.status === "waiting" ? "rgba(191,90,242,0.2)" : task.status === "todo" ? "rgba(10,132,255,0.2)" : "transparent",
         cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center",
         color: "#0d1117", fontSize: 10, fontWeight: 700,
       }}>

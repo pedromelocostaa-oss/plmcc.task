@@ -22,38 +22,34 @@ export function hostname(url: string): string {
 
 export function formatDue(dueDate: string | null, status: string): { label: string; color: string } {
   if (!dueDate) return { label: "", color: "" };
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const d = new Date(dueDate + "T00:00:00");
+  const todayStr = todayIso();
+  const d = new Date(dueDate + "T12:00:00");
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   if (status === "done") return { label: `${dd}/${mm}`, color: "#6e7681" };
-  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
-  if (diff < 0) return { label: `${dd}/${mm} · atrasado`, color: "#ef4444" };
-  if (diff === 0) return { label: "Hoje", color: "#f97316" };
-  if (diff === 1) return { label: "Amanhã", color: "#d29922" };
+  if (dueDate < todayStr) return { label: `${dd}/${mm} · atrasado`, color: "#ef4444" };
+  if (dueDate === todayStr) return { label: "Hoje", color: "#f97316" };
+  const tomorrow = new Date(todayStr + "T12:00:00");
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (dueDate === tomorrow.toLocaleDateString("en-CA")) return { label: "Amanhã", color: "#d29922" };
   return { label: `${dd}/${mm}`, color: "#6e7681" };
 }
 
 export function isOverdue(dueDate: string | null, status: string): boolean {
   if (!dueDate || status === "done") return false;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return new Date(dueDate + "T00:00:00").getTime() < today.getTime();
+  return dueDate < todayIso();
 }
 
 export function isToday(dueDate: string | null): boolean {
   if (!dueDate) return false;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return new Date(dueDate + "T00:00:00").getTime() === today.getTime();
+  return dueDate === todayIso();
 }
 
 export function isThisWeek(dueDate: string | null): boolean {
   if (!dueDate) return false;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const d = new Date(dueDate + "T00:00:00");
-  const diff = (d.getTime() - today.getTime()) / 86400000;
-  return diff >= 0 && diff <= 7;
-}
-
-export function uid(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const todayStr = todayIso();
+  if (dueDate < todayStr) return false;
+  const end = new Date(todayStr + "T12:00:00");
+  end.setDate(end.getDate() + 7);
+  return dueDate <= end.toLocaleDateString("en-CA");
 }

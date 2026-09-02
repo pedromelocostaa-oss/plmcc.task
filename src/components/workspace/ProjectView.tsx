@@ -109,7 +109,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
   async function handleCreateTask(data: {
     title: string; description?: string | null; priority: Task['priority']; due_date?: string | null;
   }) {
-    await createTask.mutateAsync({ ...data, project_id: projectId, status: "todo" });
+    await createTask.mutateAsync({ ...data, project_id: projectId, status: "backlog" });
     toast.success("Tarefa criada");
     setShowForm(false);
   }
@@ -265,9 +265,11 @@ function TasksTab(props: TasksTabProps) {
         { label: "P3 · BAIXA", items: tasks.filter((t) => t.priority === 3) },
       ]
     : [
-        { label: "A FAZER", items: tasks.filter((t) => t.status === "todo") },
-        { label: "EM ANDAMENTO", items: tasks.filter((t) => t.status === "doing") },
-        { label: "CONCLUÍDA", items: tasks.filter((t) => t.status === "done") },
+        { label: "BACKLOG", items: tasks.filter((t) => t.status === "backlog") },
+        { label: "A FAZER NO DIA", items: tasks.filter((t) => t.status === "todo") },
+        { label: "FAZENDO", items: tasks.filter((t) => t.status === "doing") },
+        { label: "AGUARDANDO", items: tasks.filter((t) => t.status === "waiting") },
+        { label: "FINALIZADO", items: tasks.filter((t) => t.status === "done") },
       ];
 
   return (
@@ -404,8 +406,8 @@ function TaskCard({
 
         <button onClick={onCycleStatus} style={{
           width: 16, height: 16, borderRadius: 8, marginTop: 3, flexShrink: 0,
-          border: `1.5px solid ${isDone ? colors.success : task.status === "doing" ? colors.warning : colors.border}`,
-          background: isDone ? colors.success : task.status === "doing" ? "rgba(210,153,34,0.2)" : "transparent",
+          border: `1.5px solid ${isDone ? colors.success : task.status === "doing" ? colors.warning : task.status === "waiting" ? colors.purple : task.status === "todo" ? colors.info : colors.border}`,
+          background: isDone ? colors.success : task.status === "doing" ? "rgba(210,153,34,0.2)" : task.status === "waiting" ? "rgba(191,90,242,0.2)" : task.status === "todo" ? "rgba(10,132,255,0.2)" : "transparent",
           cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center",
           color: "#0d1117", fontSize: 10, fontWeight: 700,
         }}>

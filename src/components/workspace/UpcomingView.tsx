@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { CalendarDays, Check } from "lucide-react";
 import { useAllTasks, useSetTaskStatus } from "@/lib/queries";
 import type { Task } from "@/lib/types";
-import { tagColor } from "@/lib/types";
+import { tagColor } from "@/lib/format";
 import { toIso } from "@/lib/format";
 import { colors, radius, spring } from "@/lib/tokens";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -133,7 +133,7 @@ export function UpcomingView() {
   const lastIso = days[days.length - 1];
 
   function handleToggleDone(task: Task) {
-    const newStatus = task.status === "done" ? "todo" : "done";
+    const newStatus = task.status === "done" ? "backlog" : "done";
     setStatus.mutate({ id: task.id, status: newStatus, projectId: task.project_id });
   }
 

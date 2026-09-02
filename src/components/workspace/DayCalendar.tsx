@@ -5,14 +5,18 @@ import type { CalendarEvent } from "@/lib/calendar-api";
 import { colors, spring, radius } from "@/lib/tokens";
 
 // Plain fetch — no createServerFn, works in every environment
-export async function fetchCalendarEvents(date: string): Promise<CalendarEvent[]> {
-  try {
-    const res = await fetch(`/api/calendar?date=${encodeURIComponent(date)}`);
-    if (!res.ok) return [];
-    return res.json() as Promise<CalendarEvent[]>;
-  } catch {
-    return [];
-  }
+//
+// `force`: usado pelo botão "Atualizar" — a API responde com
+// `Cache-Control: public, max-age=300`, então sem isso o navegador devolvia
+// a resposta antiga do cache HTTP por até 5min, fazendo o botão "não funcionar".
+// Com `force`, ignoramos o cache do navegador (`cache: "no-store"`) e ainda
+// adicionamos um parâmetro `_t` para furar qualquer cache intermediário (CDN/edge).
+export async function fetchCalendarEvents(date: string, force = false): Promise<CalendarEvent[]> {
+  const qs = new URLSearchParams({ date });
+  if (force) qs.set("_t", String(Date.now()));
+  const res = await fetch(`/api/calendar?${qs.toString()}`, force ? { cache: "no-store" } : undefined);
+  if (!res.ok) throw new Error(`Calendar API ${res.status}`);
+  return res.json() as Promise<CalendarEvent[]>;
 }
 
 // ── constants ─────────────────────────────────────────────────────────────────
@@ -185,13 +189,25 @@ export function DayCalendar({ isoDate, isToday }: DayCalendarProps) {
     return () => clearInterval(id);
   }, []);
 
+  // Marca quando o próximo fetch deve ignorar o cache HTTP (clique manual em "Atualizar")
+  const forceNextFetch = useRef(false);
+
   // Scroll to current time (today) or first event (other days)
-  const { data: events = [], isLoading, isFetching, refetch } = useQuery({
+  const { data: events = [], isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ["calendar-events", isoDate],
-    queryFn: () => fetchCalendarEvents(isoDate),
+    queryFn: () => {
+      const force = forceNextFetch.current;
+      forceNextFetch.current = false;
+      return fetchCalendarEvents(isoDate, force);
+    },
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
+
+  function handleManualRefresh() {
+    forceNextFetch.current = true;
+    refetch();
+  }
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -252,7 +268,7 @@ export function DayCalendar({ isoDate, isToday }: DayCalendarProps) {
           </span>
         )}
         <button
-          onClick={() => refetch()}
+          onClick={handleManualRefresh}
           disabled={isFetching}
           style={{
             background: "transparent",
@@ -324,8 +340,37 @@ export function DayCalendar({ isoDate, isToday }: DayCalendarProps) {
         >
           <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
 
+          {/* Error state */}
+          {isError && events.length === 0 && (
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              color: colors.textMuted,
+              fontSize: 13,
+            }}>
+              <CalendarDays size={28} strokeWidth={1.2} />
+              <span>Não foi possível carregar o calendário</span>
+              <button
+                onClick={handleManualRefresh}
+                style={{
+                  background: "var(--hq-accent-soft)", color: "var(--hq-accent)",
+                  border: "none", padding: "6px 14px", borderRadius: 8,
+                  fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  marginTop: 4,
+                }}
+              >
+                Tentar novamente
+              </button>
+            </div>
+          )}
+
           {/* Empty state */}
-          {events.length === 0 && (
+          {!isError && events.length === 0 && (
             <div style={{
               position: "absolute",
               inset: 0,

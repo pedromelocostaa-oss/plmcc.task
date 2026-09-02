@@ -5,4 +5,7 @@ const BookmarksView = lazy(() =>
   import("@/components/workspace/BookmarksView").then((m) => ({ default: m.BookmarksView }))
 );
 
-export const Route = createFileRoute("/bookmarks")({ component: BookmarksView });
+export const Route = createFileRoute("/bookmarks")({
+  component: BookmarksView,
+  head: () => ({ meta: [{ title: "Links · Pedro's HQ" }] }),
+});

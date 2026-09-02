@@ -49,12 +49,15 @@ export const colors = {
   purple:  '#BF5AF2',
 
   // Priority (theme-reactive)
-  p1:   'var(--hq-p1)',
-  p1Bg: 'var(--hq-p1-bg)',
-  p2:   'var(--hq-p2)',
-  p2Bg: 'var(--hq-p2-bg)',
-  p3:   'var(--hq-p3)',
-  p3Bg: 'var(--hq-p3-bg)',
+  p1:       'var(--hq-p1)',
+  p1Bg:     'var(--hq-p1-bg)',
+  p1CardBg: 'var(--hq-p1-card-bg)',
+  p2:       'var(--hq-p2)',
+  p2Bg:     'var(--hq-p2-bg)',
+  p2CardBg: 'var(--hq-p2-card-bg)',
+  p3:       'var(--hq-p3)',
+  p3Bg:     'var(--hq-p3-bg)',
+  p3CardBg: 'var(--hq-p3-card-bg)',
 
   // Shadows
   shadowSoft:  'var(--hq-shadow-soft)',

@@ -191,43 +191,9 @@ export function useTasksByProject(projectId: string) {
   });
 }
 
-export function useTasksForToday() {
-  const today = todayBrasilia();
-  return useQuery({
-    queryKey: QK.tasksToday,
-    queryFn: async (): Promise<Task[]> => {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*, subtasks(*), task_tags(*), project:projects(name, color)")
-        .eq("due_date", today)
-        .order("priority")
-        .order("position");
-      if (error) throw error;
-      return (data ?? []) as unknown as Task[];
-    },
-  });
-}
-
-export function useOverdueTasks() {
-  const today = todayBrasilia();
-  return useQuery({
-    queryKey: QK.tasksOverdue,
-    queryFn: async (): Promise<Task[]> => {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*, subtasks(*), task_tags(*), project:projects(name, color)")
-        .lt("due_date", today)
-        .neq("status", "done")
-        .order("due_date")
-        .order("priority");
-      if (error) throw error;
-      return (data ?? []) as unknown as Task[];
-    },
-  });
-}
 
 export type TaskFilters = {
-  status?: 'todo' | 'doing' | 'done';
+  status?: Task['status'];
   priority?: 1 | 2 | 3;
   project_id?: string;
   tag?: string;
@@ -280,7 +246,7 @@ export function useCreateTask() {
           project_id: data.project_id,
           title: data.title,
           description: data.description ?? '',
-          status: data.status ?? 'todo',
+          status: data.status ?? 'backlog',
           priority: data.priority ?? 2,
           due_date: data.due_date ?? null,
           position: data.position ?? 0,
@@ -291,7 +257,64 @@ export function useCreateTask() {
       if (error) throw error;
       return result as unknown as Task;
     },
-    onSuccess: (_result, vars) => {
+    onMutate: async (vars) => {
+      // Optimistic insert: a tarefa aparece na hora na coluna/dia certo,
+      // sem esperar o round-trip do servidor — antes disso, criar uma
+      // tarefa "para hoje" só aparecia depois do refetch (sensação de lentidão).
+      await qc.cancelQueries({ queryKey: ["tasks", "date"] });
+
+      const allKeys = qc.getQueryCache().findAll({ queryKey: ["tasks", "date"] });
+      const snapshots = allKeys.map((q) => ({
+        key: q.queryKey,
+        data: qc.getQueryData<Task[]>(q.queryKey),
+      }));
+
+      const tempId = `temp-${Math.random().toString(36).slice(2)}-${allKeys.length}`;
+      const projects = qc.getQueryData<{ id: string; name: string; color: string }[]>(QK.projects);
+      const project = projects?.find((p) => p.id === vars.project_id);
+
+      const optimisticTask: Task = {
+        id: tempId,
+        project_id: vars.project_id,
+        title: vars.title,
+        description: vars.description ?? "",
+        status: vars.status ?? "backlog",
+        priority: vars.priority ?? 2,
+        due_date: vars.due_date ?? null,
+        position: vars.position ?? 0,
+        completed_at: null,
+        created_at: new Date().toISOString(),
+        subtasks: [],
+        task_tags: [],
+        project: project ? { name: project.name, color: project.color } : undefined,
+      };
+
+      if (vars.due_date) {
+        for (const q of allKeys) {
+          const cachedDate = q.queryKey[2];
+          if (cachedDate === vars.due_date) {
+            qc.setQueryData<Task[]>(q.queryKey, (old) => (old ? [...old, optimisticTask] : [optimisticTask]));
+          }
+        }
+      }
+
+      return { snapshots, tempId };
+    },
+    onError: (_err, _vars, ctx) => {
+      for (const { key, data } of ctx?.snapshots ?? []) {
+        qc.setQueryData(key, data);
+      }
+    },
+    onSuccess: (result, vars, ctx) => {
+      // Troca a tarefa otimista (id temporário) pela registrada no servidor
+      if (ctx?.tempId) {
+        const allKeys = qc.getQueryCache().findAll({ queryKey: ["tasks", "date"] });
+        for (const q of allKeys) {
+          qc.setQueryData<Task[]>(q.queryKey, (old) =>
+            old?.map((t) => (t.id === ctx.tempId ? { ...t, ...result, subtasks: t.subtasks, task_tags: t.task_tags, project: t.project } : t))
+          );
+        }
+      }
       qc.invalidateQueries({ queryKey: QK.tasksByProject(vars.project_id) });
       qc.invalidateQueries({ queryKey: QK.tasksToday });
       qc.invalidateQueries({ queryKey: QK.tasksOverdue });
@@ -314,7 +337,32 @@ export function useUpdateTask() {
       if (error) throw error;
       return result as unknown as Task;
     },
+    onMutate: async ({ id, data }) => {
+      await qc.cancelQueries({ queryKey: ["tasks", "date"] });
+      const allKeys = qc.getQueryCache().findAll({ queryKey: ["tasks", "date"] });
+      const snapshots = allKeys.map((q) => ({
+        key: q.queryKey,
+        data: qc.getQueryData<Task[]>(q.queryKey),
+      }));
+      for (const q of allKeys) {
+        qc.setQueryData<Task[]>(q.queryKey, (old) =>
+          old?.map((t) => t.id === id ? { ...t, ...data } : t)
+        );
+      }
+      return { snapshots };
+    },
+    onError: (_err, _vars, ctx) => {
+      for (const { key, data } of ctx?.snapshots ?? []) {
+        qc.setQueryData(key, data);
+      }
+    },
     onSuccess: (result) => {
+      const allKeys = qc.getQueryCache().findAll({ queryKey: ["tasks", "date"] });
+      for (const q of allKeys) {
+        qc.setQueryData<Task[]>(q.queryKey, (old) =>
+          old?.map((t) => (t.id === result.id ? { ...t, ...result } : t))
+        );
+      }
       qc.invalidateQueries({ queryKey: QK.tasksByProject(result.project_id) });
       qc.invalidateQueries({ queryKey: QK.tasksToday });
       qc.invalidateQueries({ queryKey: QK.tasksOverdue });
@@ -328,7 +376,8 @@ export function useCycleTaskStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, currentStatus, projectId }: { id: string; currentStatus: Task['status']; projectId: string }): Promise<Task> => {
-      const next: Task['status'] = currentStatus === 'todo' ? 'doing' : currentStatus === 'doing' ? 'done' : 'todo';
+      const cycle: Record<Task['status'], Task['status']> = { backlog: 'todo', todo: 'doing', doing: 'done', waiting: 'doing', done: 'backlog' };
+      const next = cycle[currentStatus] ?? 'todo';
       const completed_at = next === 'done' ? new Date().toISOString() : null;
       const { data: result, error } = await supabase
         .from("tasks")
@@ -340,7 +389,8 @@ export function useCycleTaskStatus() {
       return result as unknown as Task;
     },
     onMutate: async ({ id, currentStatus, projectId }) => {
-      const next: Task['status'] = currentStatus === 'todo' ? 'doing' : currentStatus === 'doing' ? 'done' : 'todo';
+      const cycle: Record<Task['status'], Task['status']> = { backlog: 'todo', todo: 'doing', doing: 'done', waiting: 'doing', done: 'backlog' };
+      const next = cycle[currentStatus] ?? 'todo';
       const qk = QK.tasksByProject(projectId);
       await qc.cancelQueries({ queryKey: qk });
       const prev = qc.getQueryData<Task[]>(qk);
@@ -360,6 +410,7 @@ export function useCycleTaskStatus() {
       qc.invalidateQueries({ queryKey: QK.tasksOverdue });
       qc.invalidateQueries({ queryKey: QK.allTasks() });
       qc.invalidateQueries({ queryKey: QK.stats });
+      qc.invalidateQueries({ queryKey: ["tasks", "date"] });
     },
   });
 }
@@ -378,6 +429,7 @@ export function useDeleteTask() {
       qc.invalidateQueries({ queryKey: QK.tasksOverdue });
       qc.invalidateQueries({ queryKey: QK.allTasks() });
       qc.invalidateQueries({ queryKey: QK.stats });
+      qc.invalidateQueries({ queryKey: ["tasks", "date"] });
     },
   });
 }
@@ -770,23 +822,30 @@ export function useTasksForDate(date: string) {
     queryFn: async (): Promise<Task[]> => {
       const SELECT = "*, subtasks(*), task_tags(*), project:projects(name, color)";
 
-      // 1. Tasks for this exact date (all statuses — shows completed ones too)
-      const { data: dayTasks, error: dayErr } = await supabase
-        .from("tasks")
-        .select(SELECT)
-        .eq("due_date", date)
-        .order("priority")
-        .order("position");
+      // Roda as duas consultas em paralelo (eram sequenciais — dobrava o tempo
+      // de carregamento/atualização da view "Meu Dia" a cada troca de status
+      // ou criação de tarefa, que dispara um refetch).
+      const [
+        { data: dayTasks, error: dayErr },
+        { data: overdue, error: odErr },
+      ] = await Promise.all([
+        // 1. Tasks for this exact date (all statuses — shows completed ones too)
+        supabase
+          .from("tasks")
+          .select(SELECT)
+          .eq("due_date", date)
+          .order("priority")
+          .order("position"),
+        // 2. Past uncompleted tasks — rolls forward to any future view
+        supabase
+          .from("tasks")
+          .select(SELECT)
+          .lt("due_date", date)          // strictly before selected date
+          .neq("status", "done")         // not completed
+          .order("due_date")             // oldest first inside the list
+          .order("priority"),
+      ]);
       if (dayErr) throw dayErr;
-
-      // 2. Past uncompleted tasks — rolls forward to any future view
-      const { data: overdue, error: odErr } = await supabase
-        .from("tasks")
-        .select(SELECT)
-        .lt("due_date", date)          // strictly before selected date
-        .neq("status", "done")         // not completed
-        .order("due_date")             // oldest first inside the list
-        .order("priority");
       if (odErr) throw odErr;
 
       // Merge without duplicates (overdue first so they appear at top of column)
@@ -808,13 +867,14 @@ export function useTasksForDate(date: string) {
 // ─── set task status directly (for kanban) ───────────────────────────────────
 
 function nextRecurrenceDate(dueDate: string, recurrence: string): string {
+  const now = new Date();
+  const today = new Date(now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }) + "T12:00:00");
   const d = new Date(dueDate + "T12:00:00");
-  if (recurrence === "daily") {
-    d.setDate(d.getDate() + 1);
-  } else if (recurrence === "weekly") {
-    d.setDate(d.getDate() + 7);
-  } else if (recurrence === "monthly") {
-    d.setMonth(d.getMonth() + 1);
+  while (d <= today) {
+    if (recurrence === "daily") d.setDate(d.getDate() + 1);
+    else if (recurrence === "weekly") d.setDate(d.getDate() + 7);
+    else if (recurrence === "monthly") d.setMonth(d.getMonth() + 1);
+    else break;
   }
   return d.toLocaleDateString("en-CA");
 }
@@ -876,8 +936,23 @@ export function useSetTaskStatus() {
         qc.setQueryData(key, data);
       }
     },
+    onSuccess: (data, vars) => {
+      // Reconcilia com a resposta real do servidor SEM disparar refetch —
+      // isso é o que fazia a troca de status parecer lenta: invalidar
+      // ["tasks","date"] forçava recarregar TODAS as datas em cache (cada
+      // uma com 2 consultas), travando a UI até a resposta voltar.
+      // Como o optimistic update já mudou o status na tela, só precisamos
+      // sincronizar os campos retornados (ex.: completed_at) — sem reload.
+      const allKeys = qc.getQueryCache().findAll({ queryKey: ["tasks", "date"] });
+      for (const q of allKeys) {
+        qc.setQueryData<Task[]>(q.queryKey, (old) =>
+          old?.map((t) => (t.id === vars.id ? { ...t, ...data } : t))
+        );
+      }
+    },
     onSettled: (_result, _error, vars) => {
-      qc.invalidateQueries({ queryKey: ["tasks", "date"] });
+      // Estes são contadores/painéis que não estão na tela "Meu Dia" —
+      // podem revalidar em segundo plano sem afetar a sensação de velocidade.
       qc.invalidateQueries({ queryKey: QK.tasksByProject(vars.projectId) });
       qc.invalidateQueries({ queryKey: QK.tasksToday });
       qc.invalidateQueries({ queryKey: QK.tasksOverdue });

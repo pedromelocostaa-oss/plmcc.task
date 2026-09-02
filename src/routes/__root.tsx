@@ -50,9 +50,10 @@ function SearchProvider({ children }: { children: ReactNode }) {
 // ─── QuickAdd context (shared between Sidebar + MobileNav) ───────────────────
 
 type QuickAddTab = "task" | "bookmark" | "note" | "purchase";
+type TaskStatus = "backlog" | "todo" | "doing" | "waiting" | "done";
 type QuickAddCtx = {
   open: boolean;
-  openQuickAdd: (tab?: QuickAddTab) => void;
+  openQuickAdd: (tab?: QuickAddTab, status?: TaskStatus) => void;
   closeQuickAdd: () => void;
 };
 const QuickAddContext = createContext<QuickAddCtx>({
@@ -65,16 +66,18 @@ export const useQuickAdd = () => useContext(QuickAddContext);
 function QuickAddProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [defaultTab, setDefaultTab] = useState<QuickAddTab>("task");
+  const [defaultStatus, setDefaultStatus] = useState<TaskStatus>("todo");
 
-  function openQuickAdd(tab?: QuickAddTab) {
+  function openQuickAdd(tab?: QuickAddTab, status?: TaskStatus) {
     if (tab) setDefaultTab(tab);
+    setDefaultStatus(status ?? "todo");
     setOpen(true);
   }
 
   return (
     <QuickAddContext.Provider value={{ open, openQuickAdd, closeQuickAdd: () => setOpen(false) }}>
       {children}
-      {open && <QuickAddModal defaultTab={defaultTab} onClose={() => setOpen(false)} />}
+      {open && <QuickAddModal defaultTab={defaultTab} defaultStatus={defaultStatus} onClose={() => setOpen(false)} />}
     </QuickAddContext.Provider>
   );
 }
@@ -308,7 +311,7 @@ function AppShell() {
           overflowX: "hidden",
           position: "relative",
           /* Room for mobile bottom nav */
-          paddingBottom: isMobile ? "env(safe-area-inset-bottom, 0px)" : 0,
+          paddingBottom: isMobile ? "var(--mobile-nav-height, 56px)" : 0,
           WebkitOverflowScrolling: "touch",
         }}>
           <Suspense fallback={<RouteLoadingFallback />}>
@@ -320,7 +323,7 @@ function AppShell() {
       {/* Mobile bottom nav */}
       {isMobile && <MobileNav />}
 
-      <Toaster theme={theme === "light" ? "light" : "dark"} position="bottom-right" />
+      <Toaster theme={theme === "light" ? "light" : "dark"} position={isMobile ? "top-center" : "bottom-right"} />
       <InstallPromptComponent />
     </>
   );

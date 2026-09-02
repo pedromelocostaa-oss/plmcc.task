@@ -125,8 +125,12 @@ export async function handleCalendarRequest(
   request: Request,
   env: Record<string, string>,
 ): Promise<Response> {
+  const origin = request.headers.get('Origin') ?? '';
+  const allowedOrigin = origin.endsWith('.workers.dev') || origin.includes('localhost') || origin.includes('127.0.0.1')
+    ? origin
+    : 'https://tanstack-start-app.pedro-costa.workers.dev';
   const cors = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': allowedOrigin,
     'Content-Type': 'application/json',
     'Cache-Control': 'public, max-age=300',
   };
@@ -155,13 +159,13 @@ export async function handleCalendarRequest(
     });
     if (!res.ok) {
       console.warn('[calendar-api] ICS fetch failed:', res.status);
-      return new Response(JSON.stringify([]), { status: 200, headers: cors });
+      return new Response(JSON.stringify({ error: 'calendar_fetch_failed' }), { status: 502, headers: cors });
     }
     const text = await res.text();
     const events = parseIcs(text, date);
     return new Response(JSON.stringify(events), { status: 200, headers: cors });
   } catch (err) {
     console.error('[calendar-api] error:', err);
-    return new Response(JSON.stringify([]), { status: 200, headers: cors });
+    return new Response(JSON.stringify({ error: 'calendar_error' }), { status: 502, headers: cors });
   }
 }

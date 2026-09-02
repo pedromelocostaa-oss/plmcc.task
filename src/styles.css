@@ -62,9 +62,9 @@
   /* ── Text ──────────────────────────────────────────── */
   --hq-text:            rgba(255,255,255,0.94);
   --hq-text-secondary:  rgba(255,255,255,0.62);
-  --hq-text-muted:      rgba(255,255,255,0.40);
-  --hq-text-quaternary: rgba(255,255,255,0.22);
-  --hq-text-faint:      rgba(255,255,255,0.22);
+  --hq-text-muted:      rgba(255,255,255,0.50);
+  --hq-text-quaternary: rgba(255,255,255,0.30);
+  --hq-text-faint:      rgba(255,255,255,0.30);
 
   /* ── Accent — amber brand ────────────────────────── */
   --hq-accent:          #E58430;
@@ -78,14 +78,19 @@
   --hq-warning:         #FF9F0A;
   --hq-danger:          #FF453A;
   --hq-info:            #0A84FF;
+  --hq-purple:          #BF5AF2;
 
   /* ── Priority ──────────────────────────────────────── */
-  --hq-p1:              #FF453A;
-  --hq-p2:              #FF9F0A;
-  --hq-p3:              #0A84FF;
-  --hq-p1-bg:           rgba(255,69,58,0.14);
-  --hq-p2-bg:           rgba(255,159,10,0.14);
+  --hq-p1:              #FF453A;   /* vermelho claro */
+  --hq-p2:              #FFD60A;   /* amarelo (era laranja) */
+  --hq-p3:              #0A84FF;   /* azul claro */
+  --hq-p1-bg:           rgba(255,69,58,0.16);
+  --hq-p2-bg:           rgba(255,214,10,0.16);
   --hq-p3-bg:           rgba(10,132,255,0.14);
+  /* Card backgrounds — tint de prioridade sobre o fundo do card */
+  --hq-p1-card-bg:      rgba(255,69,58,0.11);   /* mais destaque */
+  --hq-p2-card-bg:      rgba(255,214,10,0.07);  /* destaque médio */
+  --hq-p3-card-bg:      rgba(10,132,255,0.05);  /* menos destaque */
 
   /* ── Shadows ───────────────────────────────────────── */
   --hq-shadow-soft:     0 1px 2px rgba(0,0,0,0.20);
@@ -274,9 +279,9 @@ html[data-theme="light"] {
 
   --hq-text:            #1C1C1E;
   --hq-text-secondary:  rgba(60,60,67,0.72);
-  --hq-text-muted:      rgba(60,60,67,0.50);
-  --hq-text-quaternary: rgba(60,60,67,0.30);
-  --hq-text-faint:      rgba(60,60,67,0.30);
+  --hq-text-muted:      rgba(60,60,67,0.60);
+  --hq-text-quaternary: rgba(60,60,67,0.38);
+  --hq-text-faint:      rgba(60,60,67,0.38);
 
   --hq-accent:          #D4700A;
   --hq-accent-soft:     rgba(212,112,10,0.12);
@@ -288,13 +293,18 @@ html[data-theme="light"] {
   --hq-warning:         #FF9500;
   --hq-danger:          #FF3B30;
   --hq-info:            #007AFF;
+  --hq-purple:          #AF52DE;
 
-  --hq-p1:              #FF3B30;
-  --hq-p2:              #FF9500;
-  --hq-p3:              #007AFF;
-  --hq-p1-bg:           rgba(255,59,48,0.12);
-  --hq-p2-bg:           rgba(255,149,0,0.12);
-  --hq-p3-bg:           rgba(0,122,255,0.12);
+  --hq-p1:              #D93025;   /* vermelho claro — ligeiramente mais escuro p/ contraste no fundo branco */
+  --hq-p2:              #9A7000;   /* amarelo escuro p/ legibilidade no modo claro */
+  --hq-p3:              #0055CC;   /* azul claro — legível no fundo claro */
+  --hq-p1-bg:           rgba(217,48,37,0.10);
+  --hq-p2-bg:           rgba(154,112,0,0.12);
+  --hq-p3-bg:           rgba(0,85,204,0.10);
+  /* Card backgrounds modo claro */
+  --hq-p1-card-bg:      rgba(255,59,48,0.07);
+  --hq-p2-card-bg:      rgba(180,130,0,0.06);
+  --hq-p3-card-bg:      rgba(0,85,204,0.05);
 
   --hq-shadow-soft:     0 1px 2px rgba(15,15,15,0.04);
   --hq-shadow:          0 1px 2px rgba(15,15,15,0.04), 0 4px 12px rgba(15,15,15,0.06);

@@ -5,4 +5,7 @@ const TasksView = lazy(() =>
   import("@/components/workspace/TasksView").then((m) => ({ default: m.TasksView }))
 );
 
-export const Route = createFileRoute("/tasks")({ component: TasksView });
+export const Route = createFileRoute("/tasks")({
+  component: TasksView,
+  head: () => ({ meta: [{ title: "Tarefas · Pedro's HQ" }] }),
+});

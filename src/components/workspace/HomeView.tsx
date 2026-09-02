@@ -4,7 +4,7 @@ import { useLongPress } from "@/hooks/use-long-press";
 import { SwipeableCard } from "@/components/workspace/SwipeableCard";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { haptics } from "@/lib/haptics";
-import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2, Pencil } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { showUndoToast } from "@/components/ui/undo-toast";
@@ -12,7 +12,7 @@ import { useProjects, useTasksForDate, useSetTaskStatus, useDeleteTask } from "@
 import { useQuickAdd } from "@/routes/__root";
 import { WeeklyGoalBanner } from "@/components/workspace/WeeklyGoalBanner";
 import type { Task } from "@/lib/types";
-import { tagColor } from "@/lib/types";
+import { tagColor } from "@/lib/format";
 import { TaskDetailPanel } from "@/components/workspace/TaskDetailPanel";
 import { colors, spring, radius } from "@/lib/tokens";
 import { DayCalendar, fetchCalendarEvents } from "@/components/workspace/DayCalendar";
@@ -223,21 +223,23 @@ function WeekCalendarInline({ referenceDate }: { referenceDate: Date }) {
 // ── column config ────────────────────────────────────────────────────────────
 
 const COLUMNS: { status: Task["status"]; label: string; accent: string; accentBg: string }[] = [
-  { status: "todo",  label: "A Fazer",   accent: colors.textSecondary, accentBg: "rgba(84,84,88,0.18)" },
-  { status: "doing", label: "Fazendo",   accent: colors.warning,       accentBg: "rgba(255,159,10,0.12)" },
-  { status: "done",  label: "Concluído", accent: colors.success,       accentBg: "rgba(48,209,88,0.12)" },
+  { status: "backlog", label: "Backlog",        accent: colors.textMuted,      accentBg: "rgba(120,120,128,0.12)" },
+  { status: "todo",    label: "A fazer no dia", accent: colors.info,           accentBg: "rgba(10,132,255,0.12)" },
+  { status: "doing",   label: "Fazendo",        accent: colors.warning,        accentBg: "rgba(255,159,10,0.12)" },
+  { status: "waiting", label: "Aguardando",     accent: colors.purple,         accentBg: "rgba(191,90,242,0.12)" },
+  { status: "done",    label: "Finalizado",     accent: colors.success,        accentBg: "rgba(48,209,88,0.12)" },
 ];
 
 // ── InlineAdd ─────────────────────────────────────────────────────────────────
 // Abre o QuickAddModal completo (projeto, prazo, prioridade, descrição, subtarefas)
 
-function InlineAdd({ columnAccent }: { columnAccent: string }) {
+function InlineAdd({ columnAccent, status }: { columnAccent: string; status: Task["status"] }) {
   const { openQuickAdd } = useQuickAdd();
   const [hovered, setHovered] = useState(false);
 
   return (
     <button
-      onClick={() => openQuickAdd("task")}
+      onClick={() => openQuickAdd("task", status)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -294,10 +296,28 @@ function KanbanCard({
   const subtasks = task.subtasks ?? [];
   const doneSubs = subtasks.filter((s) => s.done).length;
 
-  const priorityMap: Record<number, { label: string; color: string }> = {
-    1: { label: "P1", color: colors.p1 },
-    2: { label: "P2", color: colors.p2 },
-    3: { label: "P3", color: colors.p3 },
+  const priorityMap: Record<number, {
+    label: string;
+    color: string;
+    cardBg: string;
+    borderPx: number;
+    shadow: string;
+  }> = {
+    1: {
+      label: "P1", color: colors.p1, cardBg: colors.p1CardBg,
+      borderPx: 3,
+      shadow: `0 2px 12px rgba(255,69,58,0.22), 0 1px 4px rgba(0,0,0,0.18)`,
+    },
+    2: {
+      label: "P2", color: colors.p2, cardBg: colors.p2CardBg,
+      borderPx: 2,
+      shadow: `0 2px 8px rgba(255,214,10,0.12), 0 1px 4px rgba(0,0,0,0.14)`,
+    },
+    3: {
+      label: "P3", color: colors.p3, cardBg: colors.p3CardBg,
+      borderPx: 2,
+      shadow: `0 1px 4px rgba(0,0,0,0.12)`,
+    },
   };
   const p = priorityMap[task.priority] ?? priorityMap[2];
 
@@ -321,17 +341,20 @@ function KanbanCard({
       {...(isMobileProp && onOpenDetail ? longPressHandlers : {})}
       style={{
         position: "relative",
-        background: expanded ? colors.surfaceRaised : colors.cardBg,
+        background: expanded
+          ? colors.surfaceRaised
+          : p.cardBg,          /* tint de prioridade — resolve via CSS var (dark/light) */
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
-        border: expanded
-          ? `1px solid ${p.color}30`
-          : `1px solid ${colors.cardBorder}`,
+        borderTop:    `1px solid ${colors.cardBorder}`,
+        borderRight:  `1px solid ${colors.cardBorder}`,
+        borderBottom: `1px solid ${colors.cardBorder}`,
+        borderLeft:   `${p.borderPx}px solid ${p.color}`,  /* borda esquerda colorida por prioridade */
         borderRadius: radius.md,
         overflow: "hidden",
         boxShadow: expanded
-          ? `0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px ${p.color}18`
-          : "0 2px 8px rgba(0,0,0,0.15)",
+          ? `0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px ${p.color}28`
+          : p.shadow,
         marginBottom: 8,
         transition: `background 0.2s ${spring.gentle}, border-color 0.2s ${spring.gentle}, box-shadow 0.2s ${spring.gentle}, opacity 0.15s`,
         cursor: "grab",
@@ -342,7 +365,7 @@ function KanbanCard({
     >
       {/* Quick complete button */}
       <button
-        onClick={(e) => { e.stopPropagation(); haptics.success(); onMove(task.status === "done" ? "todo" : "done"); }}
+        onClick={(e) => { e.stopPropagation(); haptics.success(); onMove(task.status === "done" ? "backlog" : "done"); }}
         style={{
           position: "absolute", top: 8, right: 8,
           width: 20, height: 20, borderRadius: "50%",
@@ -376,18 +399,25 @@ function KanbanCard({
             padding: "1px 5px", borderRadius: 4,
             flexShrink: 0, letterSpacing: "0.04em",
           }}>{p.label}</span>
-          {onOpenDetail && cardHovered && (
+          {onOpenDetail && (
             <button
               onClick={(e) => { e.stopPropagation(); onOpenDetail(); }}
-              title="Abrir detalhes"
+              title="Editar tarefa"
+              aria-label="Editar tarefa"
               style={{
-                background: "var(--hq-inlay-bg)", border: `1px solid var(--hq-border)`,
-                borderRadius: 4, color: colors.textSecondary, cursor: "pointer",
-                padding: "1px 4px", display: "inline-flex", alignItems: "center",
+                background: cardHovered ? `${colors.accent}1A` : "var(--hq-inlay-bg)",
+                border: `1px solid ${cardHovered ? `${colors.accent}55` : "var(--hq-border)"}`,
+                borderRadius: 5, color: cardHovered ? colors.accent : colors.textSecondary,
+                cursor: "pointer",
+                padding: "3px 7px", display: "inline-flex", alignItems: "center", gap: 4,
+                fontSize: 10, fontWeight: 600,
                 flexShrink: 0,
+                opacity: cardHovered || isMobileProp ? 1 : 0.55,
+                transition: "all 120ms",
               }}
             >
-              <ArrowRight size={10} />
+              <Pencil size={10} />
+              Editar
             </button>
           )}
           <span style={{ flex: 1 }} />
@@ -679,7 +709,7 @@ function KanbanColumn({
             color: colors.textMuted, fontSize: 12,
             fontStyle: "italic",
           }}>
-            {config.status === "done" ? "Nenhuma tarefa concluída" : "Vazio"}
+            {config.status === "done" ? "Nenhuma tarefa finalizada" : "Vazio"}
           </div>
         )}
         {tasks.map((t) => (
@@ -695,7 +725,7 @@ function KanbanColumn({
         ))}
 
         {/* Inline add at bottom of column */}
-        <InlineAdd columnAccent={config.accent} />
+        <InlineAdd columnAccent={config.accent} status={config.status} />
       </div>
     </div>
   );
@@ -715,7 +745,7 @@ export function HomeView() {
   });
   const [projectFilter, setProjectFilter] = useState<string | null>(null);
   const [sortByPriority, setSortByPriority] = useState(false);
-  const [mobileColumn, setMobileColumn] = useState<Task["status"]>("todo");
+  const [mobileColumn, setMobileColumn] = useState<Task["status"]>("backlog");
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarView, setCalendarView] = useState<"day" | "week">("day");
   const [calendarExpanded, setCalendarExpanded] = useState(false);
@@ -763,7 +793,7 @@ export function HomeView() {
       { id, status, projectId: task.project_id },
       {
         onSuccess: () => {
-          const labels: Record<Task["status"], string> = { todo: "A Fazer", doing: "Fazendo", done: "Concluído" };
+          const labels: Record<Task["status"], string> = { backlog: "Backlog", todo: "A fazer no dia", doing: "Fazendo", waiting: "Aguardando", done: "Finalizado" };
           showUndoToast({
             title: `Movida para ${labels[status]}`,
             description: task.title.length > 45 ? task.title.slice(0, 45) + "…" : task.title,

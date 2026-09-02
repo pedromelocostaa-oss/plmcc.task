@@ -7,12 +7,13 @@ import {
   useCreateNote, useCreatePurchase, useCreateSubtask,
 } from "@/lib/queries";
 import { todayIso } from "@/lib/format";
+import type { Task } from "@/lib/types";
 import { colors, spring, radius } from "@/lib/tokens";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
 type Tab = "task" | "bookmark" | "note" | "purchase";
 
-interface Props { onClose: () => void; defaultTab?: Tab; }
+interface Props { onClose: () => void; defaultTab?: Tab; defaultStatus?: "backlog" | "todo" | "doing" | "waiting" | "done"; }
 
 const PRIORITIES = [
   { value: 1, label: "P1", color: "var(--hq-p1)", bg: "var(--hq-p1-bg)", desc: "Urgente" },
@@ -41,7 +42,7 @@ interface Subtask {
   title: string;
 }
 
-export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
+export function QuickAddModal({ onClose, defaultTab = "task", defaultStatus = "todo" }: Props) {
   const [tab, setTab] = useState<Tab>(defaultTab);
   const { data: projects = [] } = useProjects();
   const createTask = useCreateTask();
@@ -58,6 +59,7 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
   const [taskProject, setTaskProject] = useState("");
   const [taskDate, setTaskDate] = useState(todayIso());
   const [taskPriority, setTaskPriority] = useState<1 | 2 | 3>(2);
+  const [taskStatus, setTaskStatus] = useState<Task["status"]>(defaultStatus);
   const [taskRecurrence, setTaskRecurrence] = useState<"" | "daily" | "weekly" | "monthly">("");
   const [taskDesc, setTaskDesc] = useState("");
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
@@ -84,6 +86,13 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
   const [purchaseDesc, setPurchaseDesc] = useState("");
 
   const subtaskInputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Force focus on title after modal mounts (autoFocus can fail inside animated modals)
+  useEffect(() => {
+    const t = setTimeout(() => titleInputRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, []);
 
   // Auto-select first active project (respects last-used via localStorage)
   useEffect(() => {
@@ -130,7 +139,7 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
         due_date: taskDate || null,
         priority: taskPriority,
         description: taskDesc.trim() || null,
-        status: "todo",
+        status: taskStatus,
         recurrence: taskRecurrence || null,
       });
 
@@ -202,7 +211,7 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
     if (!purchaseName.trim()) return;
     try {
       const priceCents = purchasePrice
-        ? Math.round(parseFloat(purchasePrice.replace(",", ".")) * 100)
+        ? Math.round(parseFloat(purchasePrice.replace(/\./g, "").replace(",", ".")) * 100)
         : 0;
 
       // Normalize & filter non-empty links
@@ -346,6 +355,7 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
               <div>
                 <label style={labelStyle}>Título *</label>
                 <input
+                  ref={titleInputRef}
                   autoFocus
                   value={taskTitle}
                   onChange={(e) => setTaskTitle(e.target.value)}
@@ -448,6 +458,38 @@ export function QuickAddModal({ onClose, defaultTab = "task" }: Props) {
                       }}
                     >
                       <span>{r.emoji}</span> {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Status inicial</label>
+                <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                  {([
+                    { value: "backlog" as const, label: "Backlog",        color: "var(--hq-text-muted)",   bg: "var(--hq-inlay-bg)" },
+                    { value: "todo" as const,    label: "A fazer no dia", color: "var(--hq-info)",         bg: "rgba(10,132,255,0.12)" },
+                    { value: "doing" as const,   label: "Fazendo",        color: "var(--hq-accent)",       bg: "var(--hq-accent-bg)" },
+                    { value: "waiting" as const, label: "Aguardando",     color: "var(--hq-purple, #BF5AF2)", bg: "rgba(191,90,242,0.12)" },
+                    { value: "done" as const,    label: "Finalizado",     color: "var(--hq-success)",      bg: "rgba(48,209,88,0.12)" },
+                  ]).map((s) => (
+                    <button
+                      key={s.value}
+                      type="button"
+                      onClick={() => setTaskStatus(s.value)}
+                      style={{
+                        flex: 1,
+                        padding: "6px 4px",
+                        background: taskStatus === s.value ? s.bg : "transparent",
+                        border: taskStatus === s.value ? `1px solid ${s.color}50` : `1px solid var(--hq-border)`,
+                        borderRadius: radius.sm,
+                        color: taskStatus === s.value ? s.color : colors.textMuted,
+                        cursor: "pointer",
+                        fontSize: 11, fontWeight: taskStatus === s.value ? 700 : 400,
+                        transition: `all 0.15s ${spring.gentle}`,
+                      }}
+                    >
+                      {s.label}
                     </button>
                   ))}
                 </div>
