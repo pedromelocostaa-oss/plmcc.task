@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { TaskCardSkeleton } from "@/components/ui/skeleton-card";
 import { useLongPress } from "@/hooks/use-long-press";
 import { SwipeableCard } from "@/components/workspace/SwipeableCard";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { haptics } from "@/lib/haptics";
-import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2, Pencil, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { showUndoToast } from "@/components/ui/undo-toast";
@@ -643,6 +643,7 @@ function KanbanColumn({
   config, tasks, onMove, draggedTaskId,
   onDragOver, onDrop, onDragLeave, isDragOver,
   onCardDragStart, onCardDragEnd, selectedDate, onOpenDetail,
+  collapsed, onToggleCollapse,
 }: {
   config: typeof COLUMNS[number];
   tasks: Task[];
@@ -656,7 +657,65 @@ function KanbanColumn({
   onCardDragEnd: () => void;
   selectedDate: string;
   onOpenDetail?: (id: string) => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }) {
+  if (collapsed) {
+    return (
+      <div
+        onClick={onToggleCollapse}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onDragLeave={onDragLeave}
+        style={{
+          width: 40,
+          minWidth: 40,
+          maxWidth: 40,
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          background: isDragOver ? config.accentBg : colors.columnBg,
+          borderRadius: radius.lg,
+          border: isDragOver
+            ? `1px solid ${config.accent}60`
+            : `1px solid ${colors.cardBorder}`,
+          overflow: "hidden",
+          cursor: "pointer",
+          transition: `background 0.15s ${spring.gentle}, border-color 0.15s ${spring.gentle}`,
+          boxShadow: isDragOver ? `0 0 0 2px ${config.accent}30` : "none",
+          padding: "10px 0",
+          gap: 8,
+        }}
+        title={`Expandir ${config.label}`}
+      >
+        <ChevronsRight size={13} color={colors.textMuted} />
+        <div style={{ width: 8, height: 8, borderRadius: 4, background: config.accent, flexShrink: 0 }} />
+        <span style={{
+          fontSize: 10, padding: "2px 7px", borderRadius: "99px",
+          background: config.accentBg,
+          color: config.accent,
+          fontVariantNumeric: "tabular-nums",
+          fontWeight: 600,
+        }}>
+          {tasks.length}
+        </span>
+        <span style={{
+          writingMode: "vertical-lr",
+          fontSize: 12, fontWeight: 600,
+          color: colors.textSecondary,
+          letterSpacing: "0.02em",
+          whiteSpace: "nowrap",
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+        }}>
+          {config.label}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div
       onDragOver={onDragOver}
@@ -699,6 +758,28 @@ function KanbanColumn({
         }}>
           {tasks.length}
         </span>
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            title="Recolher coluna"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: colors.textMuted,
+              cursor: "pointer",
+              padding: 2,
+              borderRadius: 4,
+              display: "flex",
+              alignItems: "center",
+              opacity: 0.6,
+              transition: "opacity 120ms",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = "0.6"; }}
+          >
+            <ChevronsLeft size={13} />
+          </button>
+        )}
       </div>
 
       {/* Cards */}
@@ -752,6 +833,20 @@ export function HomeView() {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<Task["status"] | null>(null);
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
+  const [collapsedColumns, setCollapsedColumns] = useState<Set<Task["status"]>>(() => {
+    try {
+      const saved = localStorage.getItem("hq-collapsed-columns");
+      return saved ? new Set(JSON.parse(saved)) : new Set<Task["status"]>();
+    } catch { return new Set<Task["status"]>(); }
+  });
+  const toggleCollapse = useCallback((status: Task["status"]) => {
+    setCollapsedColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status); else next.add(status);
+      try { localStorage.setItem("hq-collapsed-columns", JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  }, []);
   const isMobile = useIsMobile();
   const setStatus = useSetTaskStatus();
   const deleteTask = useDeleteTask();
@@ -1177,6 +1272,8 @@ export function HomeView() {
                       onCardDragStart={(id) => setDraggedTaskId(id)}
                       onCardDragEnd={() => { setDraggedTaskId(null); setDragOverColumn(null); }}
                       selectedDate={selectedIso}
+                      collapsed={collapsedColumns.has(col.status)}
+                      onToggleCollapse={() => toggleCollapse(col.status)}
                     />
                   ))
                 )}
