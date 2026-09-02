@@ -1101,7 +1101,7 @@ export function HomeView() {
                     <>
                       {col.tasks.length === 0 && (
                         <div style={{ textAlign: "center", padding: "40px 8px", color: colors.textMuted, fontSize: 13 }}>
-                          {col.status === "done" ? "Nenhuma tarefa concluída" : "Vazio"}
+                          {col.status === "done" ? "Nenhuma tarefa finalizada" : "Vazio"}
                         </div>
                       )}
                       {col.tasks.map((t) => (

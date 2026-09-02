@@ -145,17 +145,17 @@ export function TaskDetailPanel({ task, onClose }: TaskDetailPanelProps) {
 
   const handleDelete = useCallback(() => {
     onClose();
-    let deleted = false;
+    let cancelled = false;
     showUndoToast({
       title: "Tarefa excluída",
       description: task.title,
       icon: <Trash2 size={12} color="#fff" />,
       iconBg: "var(--hq-danger)",
-      undo: () => { deleted = false; },
+      undo: () => { cancelled = true; },
       duration: 5000,
     });
     setTimeout(() => {
-      if (!deleted) {
+      if (!cancelled) {
         deleteTask.mutate({ id: task.id, projectId: task.project_id });
       }
     }, 5100);
