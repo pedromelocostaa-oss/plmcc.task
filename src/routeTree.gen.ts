@@ -9,8 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UpcomingRouteImport } from './routes/upcoming'
-import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as PurchasesRouteImport } from './routes/purchases'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -18,16 +16,6 @@ import { Route as BookmarksRouteImport } from './routes/bookmarks'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
 
-const UpcomingRoute = UpcomingRouteImport.update({
-  id: '/upcoming',
-  path: '/upcoming',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TasksRoute = TasksRouteImport.update({
-  id: '/tasks',
-  path: '/tasks',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PurchasesRoute = PurchasesRouteImport.update({
   id: '/purchases',
   path: '/purchases',
@@ -65,8 +53,6 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/notes': typeof NotesRoute
   '/purchases': typeof PurchasesRoute
-  '/tasks': typeof TasksRoute
-  '/upcoming': typeof UpcomingRoute
   '/projects/$id': typeof ProjectsIdRoute
 }
 export interface FileRoutesByTo {
@@ -75,8 +61,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/notes': typeof NotesRoute
   '/purchases': typeof PurchasesRoute
-  '/tasks': typeof TasksRoute
-  '/upcoming': typeof UpcomingRoute
   '/projects/$id': typeof ProjectsIdRoute
 }
 export interface FileRoutesById {
@@ -86,8 +70,6 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/notes': typeof NotesRoute
   '/purchases': typeof PurchasesRoute
-  '/tasks': typeof TasksRoute
-  '/upcoming': typeof UpcomingRoute
   '/projects/$id': typeof ProjectsIdRoute
 }
 export interface FileRouteTypes {
@@ -98,8 +80,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/notes'
     | '/purchases'
-    | '/tasks'
-    | '/upcoming'
     | '/projects/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -108,8 +88,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/notes'
     | '/purchases'
-    | '/tasks'
-    | '/upcoming'
     | '/projects/$id'
   id:
     | '__root__'
@@ -118,8 +96,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/notes'
     | '/purchases'
-    | '/tasks'
-    | '/upcoming'
     | '/projects/$id'
   fileRoutesById: FileRoutesById
 }
@@ -129,27 +105,11 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   NotesRoute: typeof NotesRoute
   PurchasesRoute: typeof PurchasesRoute
-  TasksRoute: typeof TasksRoute
-  UpcomingRoute: typeof UpcomingRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/upcoming': {
-      id: '/upcoming'
-      path: '/upcoming'
-      fullPath: '/upcoming'
-      preLoaderRoute: typeof UpcomingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tasks': {
-      id: '/tasks'
-      path: '/tasks'
-      fullPath: '/tasks'
-      preLoaderRoute: typeof TasksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/purchases': {
       id: '/purchases'
       path: '/purchases'
@@ -201,8 +161,6 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   NotesRoute: NotesRoute,
   PurchasesRoute: PurchasesRoute,
-  TasksRoute: TasksRoute,
-  UpcomingRoute: UpcomingRoute,
   ProjectsIdRoute: ProjectsIdRoute,
 }
 export const routeTree = rootRouteImport

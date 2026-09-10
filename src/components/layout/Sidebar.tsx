@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  Home, ListChecks, Search, Bookmark, Plus, Download,
-  Archive, ChevronDown, ChevronRight, RotateCcw, Sun, Moon,
-  BarChart2, PanelLeftClose, PanelLeftOpen, FileText, ShoppingCart, CalendarDays,
+  Home, Search, Bookmark, Plus, Download,
+  Archive, ChevronDown, ChevronRight, RotateCcw, Sun, Moon, Trash2,
+  BarChart2, PanelLeftClose, PanelLeftOpen, FileText, ShoppingCart,
 } from "lucide-react";
 import { MiniCalendar } from "@/components/workspace/MiniCalendar";
 import {
   useProjects, useArchivedProjects, useBookmarks,
   useCreateProject, useArchiveProject, useUnarchiveProject, useTasksByProject,
+  useDeleteProject,
 } from "@/lib/queries";
 import { PROJECT_COLORS } from "@/lib/types";
 import { useSearch, useQuickAdd } from "@/routes/__root";
@@ -28,6 +29,16 @@ export function Sidebar() {
   const createProject = useCreateProject();
   const archiveProject = useArchiveProject();
   const unarchiveProject = useUnarchiveProject();
+  const deleteProject = useDeleteProject();
+
+  function handleDeleteProject(id: string, name: string) {
+    if (typeof window === "undefined") return;
+    const confirmed = window.confirm(
+      `Excluir o projeto "${name}"?\n\nTodas as tarefas, links e notas associados serão removidos permanentemente. Essa ação não pode ser desfeita.`
+    );
+    if (!confirmed) return;
+    deleteProject.mutate(id);
+  }
   const { open: searchOpen, openSearch, closeSearch } = useSearch();
   const { openQuickAdd } = useQuickAdd();
   const { theme, toggle } = useTheme();
@@ -181,8 +192,6 @@ export function Sidebar() {
           display: "flex", flexDirection: "column", gap: 1,
         }}>
           <NavLink to="/" tint={NAV_TINTS.home} icon={<Home size={13} strokeWidth={2.25} />} label="Meu dia" active={currentPath === "/"} collapsed={collapsed} />
-          <NavLink to="/upcoming" tint={NAV_TINTS.upcoming} icon={<CalendarDays size={13} strokeWidth={2.25} />} label="Próximos 7 dias" active={currentPath === "/upcoming"} collapsed={collapsed} />
-          <NavLink to="/tasks" tint={NAV_TINTS.tasks} icon={<ListChecks size={13} strokeWidth={2.25} />} label="Tarefas" active={currentPath === "/tasks"} collapsed={collapsed} />
           <NavLink to="/dashboard" tint={NAV_TINTS.dash} icon={<BarChart2 size={13} strokeWidth={2.25} />} label="Dashboard" active={currentPath === "/dashboard"} collapsed={collapsed} />
           <NavLink to="/notes" tint={NAV_TINTS.notes} icon={<FileText size={13} strokeWidth={2.25} />} label="Anotações" active={currentPath === "/notes"} collapsed={collapsed} />
           <NavLink to="/purchases" tint={NAV_TINTS.purchases} icon={<ShoppingCart size={13} strokeWidth={2.25} />} label="Compras" active={currentPath === "/purchases"} collapsed={collapsed} />
@@ -276,6 +285,7 @@ export function Sidebar() {
                   onMouseEnter={() => setHoveredId(p.id)}
                   onMouseLeave={() => setHoveredId(null)}
                   onArchive={() => archiveProject.mutate(p.id)}
+                  onDelete={() => handleDeleteProject(p.id, p.name)}
                 />
               ))}
 
@@ -440,11 +450,12 @@ function NavLink({
 // ── ProjectRow ────────────────────────────────────────────────────────────────
 
 function ProjectRow({
-  id, name, color, active, hovered, onMouseEnter, onMouseLeave, onArchive,
+  id, name, color, active, hovered, onMouseEnter, onMouseLeave, onArchive, onDelete,
 }: {
   id: string; name: string; color: string; active: boolean;
   hovered: boolean; onMouseEnter: () => void; onMouseLeave: () => void;
   onArchive: () => void;
+  onDelete: () => void;
 }) {
   const { data: tasks = [] } = useTasksByProject(id);
   const total = tasks.length;
@@ -466,9 +477,22 @@ function ProjectRow({
           <ProjectSquircle name={name} color={color} size={22} />
           <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
           {hovered ? (
-            <button onClick={(e) => { e.preventDefault(); onArchive(); }} style={{ ...iconBtnStyle, padding: 2 }}>
-              <Archive size={11} />
-            </button>
+            <div style={{ display: "flex", gap: 2 }}>
+              <button
+                onClick={(e) => { e.preventDefault(); onArchive(); }}
+                title="Arquivar"
+                style={{ ...iconBtnStyle, padding: 2 }}
+              >
+                <Archive size={11} />
+              </button>
+              <button
+                onClick={(e) => { e.preventDefault(); onDelete(); }}
+                title="Excluir projeto"
+                style={{ ...iconBtnStyle, padding: 2, color: "var(--hq-danger)" }}
+              >
+                <Trash2 size={11} />
+              </button>
+            </div>
           ) : pct === 100 && total > 0 ? (
             <span style={{ color: "var(--hq-success)", fontSize: 11 }}>✓</span>
           ) : pending > 0 ? (

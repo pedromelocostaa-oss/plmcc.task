@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, ListChecks, BarChart2, ShoppingCart, Plus } from "lucide-react";
+import { Home, BarChart2, ShoppingCart, FileText, Plus } from "lucide-react";
 import { useQuickAdd } from "@/routes/__root";
 import { colors, spring } from "@/lib/tokens";
 import { PlmccWordmark } from "@/components/ui/PlmccLogo";
@@ -7,13 +7,13 @@ import { PlmccWordmark } from "@/components/ui/PlmccLogo";
 type TabDef = { to: string; icon: React.ComponentType<{ size: number; strokeWidth: number }>; label: string };
 
 const LEFT_TABS: TabDef[] = [
-  { to: "/",      icon: Home,       label: "Hoje"    },
-  { to: "/tasks", icon: ListChecks, label: "Tarefas" },
+  { to: "/",          icon: Home,     label: "Hoje"      },
+  { to: "/dashboard", icon: BarChart2, label: "Stats"    },
 ];
 
 const RIGHT_TABS: TabDef[] = [
-  { to: "/dashboard", icon: BarChart2,   label: "Stats"  },
-  { to: "/purchases", icon: ShoppingCart, label: "Compras" },
+  { to: "/notes",     icon: FileText,     label: "Anotações" },
+  { to: "/purchases", icon: ShoppingCart, label: "Compras"   },
 ];
 
 function quickAddTabForPath(path: string) {

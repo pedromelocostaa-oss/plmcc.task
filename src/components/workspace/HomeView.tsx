@@ -494,6 +494,7 @@ function KanbanColumn({
   isAdding, onStartAdd, onCancelAdd, onTaskCreated,
   projects,
   collapsed, onToggleCollapsed,
+  dueDate,
 }: {
   config: typeof COLUMNS[number];
   tasks: Task[];
@@ -512,6 +513,7 @@ function KanbanColumn({
   projects: { id: string; name: string; color: string; archived: boolean }[];
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  dueDate?: string | null;
 }) {
   const canAdd = config.status !== "done";
 
@@ -646,6 +648,7 @@ function KanbanColumn({
           projects={projects}
           onCreated={onTaskCreated}
           onCancel={onCancelAdd}
+          dueDate={dueDate}
         />
       )}
 
@@ -678,12 +681,13 @@ function KanbanColumn({
 // ── ColumnAddForm ─────────────────────────────────────────────────────────────
 
 function ColumnAddForm({
-  status, projects, onCreated, onCancel,
+  status, projects, onCreated, onCancel, dueDate,
 }: {
   status: Task["status"];
   projects: { id: string; name: string; color: string; archived: boolean }[];
   onCreated: () => void;
   onCancel: () => void;
+  dueDate?: string | null;
 }) {
   const createTask = useCreateTask();
   const activeProjects = projects.filter((p) => !p.archived);
@@ -699,7 +703,7 @@ function ColumnAddForm({
         project_id: projectId,
         status,
         priority: 2,
-        due_date: null,
+        due_date: dueDate ?? null,
         description: null,
       });
       toast.success("Tarefa criada!");
@@ -803,6 +807,21 @@ export function HomeView() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarView, setCalendarView] = useState<"day" | "week">("day");
   const [calendarExpanded, setCalendarExpanded] = useState(false);
+  const [calendarHidden, setCalendarHidden] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCalendarHidden(window.localStorage.getItem("plmcc.calendar.hidden") === "true");
+    } catch { /* ignore */ }
+  }, []);
+
+  function toggleCalendarHidden() {
+    setCalendarHidden((prev) => {
+      const next = !prev;
+      try { window.localStorage.setItem("plmcc.calendar.hidden", String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<Task["status"] | null>(null);
   const [addingInColumn, setAddingInColumn] = useState<Task["status"] | null>(null);
@@ -939,6 +958,27 @@ export function HomeView() {
             }}
           >
             {calendarExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          </button>
+        )}
+
+        {/* Hide calendar button — desktop only */}
+        {!isMobile && (
+          <button
+            onClick={toggleCalendarHidden}
+            title="Esconder agenda"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: colors.textMuted,
+              cursor: "pointer",
+              padding: 4,
+              borderRadius: 6,
+              display: "flex",
+              alignItems: "center",
+              transition: `color 0.15s ${spring.gentle}`,
+            }}
+          >
+            <X size={14} />
           </button>
         )}
       </div>
@@ -1146,6 +1186,7 @@ export function HomeView() {
                           projects={projects}
                           onCreated={() => setAddingInColumn(null)}
                           onCancel={() => setAddingInColumn(null)}
+                          dueDate={selectedIso}
                         />
                       </div>
                     )}
@@ -1181,7 +1222,7 @@ export function HomeView() {
         )
       ) : (
         /* ── DESKTOP: kanban + calendar panel side by side ── */
-        <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
+        <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0, position: "relative" }}>
           {/* Kanban side — hidden when calendar is expanded */}
           {!calendarExpanded && (
             <div style={{
@@ -1220,14 +1261,43 @@ export function HomeView() {
                     projects={projects}
                     collapsed={!!collapsedColumns[col.status]}
                     onToggleCollapsed={() => toggleCollapsed(col.status)}
+                    dueDate={selectedIso}
                   />
                 ))
               )}
             </div>
           )}
 
-          {/* Calendar panel — desktop always visible */}
-          {calendarPanel}
+          {/* Calendar panel — desktop always visible, unless hidden */}
+          {!calendarHidden && calendarPanel}
+
+          {/* Reopen agenda button when hidden */}
+          {calendarHidden && (
+            <button
+              onClick={toggleCalendarHidden}
+              title="Mostrar agenda"
+              style={{
+                position: "absolute",
+                right: 12,
+                top: 18,
+                background: colors.surfaceRaised,
+                border: `1px solid ${colors.border}`,
+                color: colors.text,
+                cursor: "pointer",
+                padding: "6px 10px",
+                borderRadius: radius.sm,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12,
+                fontWeight: 500,
+                zIndex: 5,
+                boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+              }}
+            >
+              <Calendar size={13} /> Agenda
+            </button>
+          )}
         </div>
       )}
     </div>
