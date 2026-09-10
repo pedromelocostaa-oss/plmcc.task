@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Home, ListChecks, Search, Bookmark, Plus, Download,
@@ -40,10 +40,13 @@ export function Sidebar() {
     return "task" as const;
   }
 
-  const [collapsed, setCollapsed] = useState(() => {
-    try { return localStorage.getItem("sidebar-collapsed") === "true"; }
-    catch { return false; }
-  });
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem("sidebar-collapsed") === "true");
+    } catch { /* ignore */ }
+  }, []);
   const [creating, setCreating] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [newName, setNewName] = useState("");

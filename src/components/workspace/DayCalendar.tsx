@@ -177,10 +177,11 @@ interface DayCalendarProps {
 
 export function DayCalendar({ isoDate, isToday }: DayCalendarProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [currentMin, setCurrentMin] = useState(nowMinutes);
+  // Start at 0 for SSR/client consistency; sync on mount to avoid hydration mismatch.
+  const [currentMin, setCurrentMin] = useState(0);
 
-  // Update current time every minute
   useEffect(() => {
+    setCurrentMin(nowMinutes());
     const id = setInterval(() => setCurrentMin(nowMinutes()), 60_000);
     return () => clearInterval(id);
   }, []);
