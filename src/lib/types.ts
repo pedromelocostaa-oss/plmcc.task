@@ -37,7 +37,7 @@ export type Task = {
   project_id: string;
   title: string;
   description: string;
-  status: 'todo' | 'doing' | 'done';
+  status: 'backlog' | 'todo' | 'doing' | 'waiting' | 'done';
   priority: 1 | 2 | 3;
   due_date: string | null;
   position?: number;

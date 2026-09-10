@@ -10,7 +10,8 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 
 type Tab = "task" | "bookmark" | "note" | "purchase";
 
-interface Props { onClose: () => void; defaultTab?: Tab; defaultStatus?: "todo" | "doing"; }
+type QuickStatus = "backlog" | "todo" | "doing" | "waiting";
+interface Props { onClose: () => void; defaultTab?: Tab; defaultStatus?: QuickStatus; }
 
 const PRIORITIES = [
   { value: 1, label: "P1", color: "var(--hq-p1)", bg: "var(--hq-p1-bg)", desc: "Urgente" },
@@ -57,7 +58,7 @@ export function QuickAddModal({ onClose, defaultTab = "task", defaultStatus = "t
   const [taskProject, setTaskProject] = useState("");
   const [taskDate, setTaskDate] = useState(todayIso());
   const [taskPriority, setTaskPriority] = useState<1 | 2 | 3>(2);
-  const [taskStatus, setTaskStatus] = useState<"todo" | "doing">(defaultStatus);
+  const [taskStatus, setTaskStatus] = useState<QuickStatus>(defaultStatus);
   const [taskRecurrence, setTaskRecurrence] = useState<"" | "daily" | "weekly" | "monthly">("");
   const [taskDesc, setTaskDesc] = useState("");
   const [subtasks, setSubtasks] = useState<Subtask[]>([]);
@@ -498,8 +499,10 @@ export function QuickAddModal({ onClose, defaultTab = "task", defaultStatus = "t
                 <label style={labelStyle}>Status inicial</label>
                 <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
                   {([
-                    { value: "todo",  label: "A fazer",  dot: colors.textSecondary },
-                    { value: "doing", label: "Fazendo",  dot: colors.warning },
+                    { value: "backlog", label: "Backlog",    dot: "#8E8E93" },
+                    { value: "todo",    label: "A fazer",    dot: "#0A84FF" },
+                    { value: "doing",   label: "Fazendo",    dot: colors.warning },
+                    { value: "waiting", label: "Aguardando", dot: "#BF5AF2" },
                   ] as const).map((s) => (
                     <button
                       key={s.value}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2, Plus, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -112,7 +112,7 @@ function WeekDayColumn({ day, isRef }: { day: Date; isRef: boolean }) {
           const c = EVENT_COLORS_WEEK[i % EVENT_COLORS_WEEK.length];
           return (
             <a
-              key={ev.id}
+              key={`${ev.id}-${i}`}
               href={ev.url}
               target="_blank"
               rel="noopener noreferrer"
@@ -168,10 +168,32 @@ function WeekCalendarInline({ referenceDate }: { referenceDate: Date }) {
 // ── column config ────────────────────────────────────────────────────────────
 
 const COLUMNS: { status: Task["status"]; label: string; accent: string; accentBg: string }[] = [
-  { status: "todo",  label: "A Fazer",   accent: colors.textSecondary, accentBg: "rgba(84,84,88,0.18)" },
-  { status: "doing", label: "Fazendo",   accent: colors.warning,       accentBg: "rgba(255,159,10,0.12)" },
-  { status: "done",  label: "Concluído", accent: colors.success,       accentBg: "rgba(48,209,88,0.12)" },
+  { status: "backlog", label: "Backlog",              accent: "#8E8E93",             accentBg: "rgba(142,142,147,0.14)" },
+  { status: "todo",    label: "A fazer no dia",       accent: "#0A84FF",             accentBg: "rgba(10,132,255,0.14)" },
+  { status: "doing",   label: "Fazendo",              accent: colors.warning,        accentBg: "rgba(255,159,10,0.14)" },
+  { status: "waiting", label: "Aguardando",           accent: "#BF5AF2",             accentBg: "rgba(191,90,242,0.14)" },
+  { status: "done",    label: "Finalizado",           accent: colors.success,        accentBg: "rgba(48,209,88,0.14)" },
 ];
+
+// ── column collapse (Trello-style) ───────────────────────────────────────────
+const COLLAPSED_STORAGE_KEY = "plmcc.kanban.collapsed";
+
+function loadCollapsed(): Record<string, boolean> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveCollapsed(state: Record<string, boolean>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(state));
+  } catch { /* ignore quota / private mode */ }
+}
 
 // ── KanbanCard ────────────────────────────────────────────────────────────────
 
@@ -471,6 +493,7 @@ function KanbanColumn({
   onCardDragStart, onCardDragEnd,
   isAdding, onStartAdd, onCancelAdd, onTaskCreated,
   projects,
+  collapsed, onToggleCollapsed,
 }: {
   config: typeof COLUMNS[number];
   tasks: Task[];
@@ -487,8 +510,66 @@ function KanbanColumn({
   onCancelAdd: () => void;
   onTaskCreated: () => void;
   projects: { id: string; name: string; color: string; archived: boolean }[];
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
 }) {
   const canAdd = config.status !== "done";
+
+  // ── Collapsed variant: thin vertical bar, Trello-style ────────────────────
+  if (collapsed) {
+    return (
+      <div
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onDragLeave={onDragLeave}
+        onClick={onToggleCollapsed}
+        role="button"
+        aria-label={`Expandir coluna ${config.label}`}
+        title={`Expandir ${config.label} (${tasks.length})`}
+        style={{
+          width: 40,
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          background: isDragOver ? config.accentBg : colors.columnBg,
+          borderRadius: radius.lg,
+          border: isDragOver ? `1px solid ${config.accent}60` : `1px solid ${colors.cardBorder}`,
+          overflow: "hidden",
+          cursor: "pointer",
+          padding: "10px 0",
+          gap: 10,
+          transition: `background 0.15s ${spring.gentle}, border-color 0.15s ${spring.gentle}`,
+        }}
+      >
+        <div style={{ width: 8, height: 8, borderRadius: 4, background: config.accent, flexShrink: 0 }} />
+        <span style={{
+          fontSize: 10, padding: "2px 7px", borderRadius: "99px",
+          background: config.accentBg, color: config.accent,
+          fontVariantNumeric: "tabular-nums", fontWeight: 600,
+        }}>
+          {tasks.length}
+        </span>
+        {/* Vertical label */}
+        <div style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          writingMode: "vertical-rl",
+          transform: "rotate(180deg)",
+          fontSize: 12,
+          fontWeight: 600,
+          letterSpacing: "0.02em",
+          color: colors.text,
+          whiteSpace: "nowrap",
+          userSelect: "none",
+        }}>
+          {config.label}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -520,9 +601,18 @@ function KanbanColumn({
         flexShrink: 0,
       }}>
         <div style={{ width: 8, height: 8, borderRadius: 4, background: config.accent, flexShrink: 0 }} />
-        <span style={{ fontSize: 13, fontWeight: 600, flex: 1, letterSpacing: "-0.01em" }}>
+        <button
+          onClick={onToggleCollapsed}
+          title="Recolher coluna"
+          style={{
+            background: "transparent", border: "none",
+            color: colors.text, textAlign: "left",
+            padding: 0, margin: 0, cursor: "pointer",
+            fontSize: 13, fontWeight: 600, flex: 1, letterSpacing: "-0.01em",
+          }}
+        >
           {config.label}
-        </span>
+        </button>
         <span style={{
           fontSize: 10, padding: "2px 7px", borderRadius: "99px",
           background: config.accentBg,
@@ -552,7 +642,7 @@ function KanbanColumn({
       {/* Inline add form */}
       {isAdding && (
         <ColumnAddForm
-          status={config.status as "todo" | "doing"}
+          status={config.status}
           projects={projects}
           onCreated={onTaskCreated}
           onCancel={onCancelAdd}
@@ -590,7 +680,7 @@ function KanbanColumn({
 function ColumnAddForm({
   status, projects, onCreated, onCancel,
 }: {
-  status: "todo" | "doing";
+  status: Task["status"];
   projects: { id: string; name: string; color: string; archived: boolean }[];
   onCreated: () => void;
   onCancel: () => void;
@@ -716,6 +806,20 @@ export function HomeView() {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<Task["status"] | null>(null);
   const [addingInColumn, setAddingInColumn] = useState<Task["status"] | null>(null);
+  // Start empty for SSR consistency; hydrate from localStorage after mount.
+  const [collapsedColumns, setCollapsedColumns] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    setCollapsedColumns(loadCollapsed());
+  }, []);
+
+  function toggleCollapsed(status: Task["status"]) {
+    setCollapsedColumns((prev) => {
+      const next = { ...prev, [status]: !prev[status] };
+      saveCollapsed(next);
+      return next;
+    });
+  }
   const isMobile = useIsMobile();
   const setStatus = useSetTaskStatus();
 
@@ -1038,7 +1142,7 @@ export function HomeView() {
                     {canAdd && isAdding && (
                       <div style={{ marginBottom: 10, background: colors.surface, borderRadius: radius.md, overflow: "hidden", border: `1px solid ${colors.border}` }}>
                         <ColumnAddForm
-                          status={col.status as "todo" | "doing"}
+                          status={col.status}
                           projects={projects}
                           onCreated={() => setAddingInColumn(null)}
                           onCancel={() => setAddingInColumn(null)}
@@ -1089,7 +1193,7 @@ export function HomeView() {
               minWidth: 0,
             }}>
               {isLoading ? (
-                Array.from({ length: 3 }, (_, i) => (
+                Array.from({ length: COLUMNS.length }, (_, i) => (
                   <div key={i} style={{
                     flex: 1, background: colors.surface, borderRadius: radius.lg,
                     border: `1px solid ${colors.border}`, opacity: 0.4,
@@ -1114,6 +1218,8 @@ export function HomeView() {
                     onCancelAdd={() => setAddingInColumn(null)}
                     onTaskCreated={() => setAddingInColumn(null)}
                     projects={projects}
+                    collapsed={!!collapsedColumns[col.status]}
+                    onToggleCollapsed={() => toggleCollapsed(col.status)}
                   />
                 ))
               )}

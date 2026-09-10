@@ -281,9 +281,9 @@ export function DayCalendar({ isoDate, isToday }: DayCalendarProps) {
           gap: 3,
           flexShrink: 0,
         }}>
-          {allDay.map((ev) => (
+          {allDay.map((ev, i) => (
             <a
-              key={ev.id}
+              key={`${ev.id}-${i}`}
               href={ev.url}
               target="_blank"
               rel="noopener noreferrer"
@@ -432,7 +432,7 @@ export function DayCalendar({ isoDate, isToday }: DayCalendarProps) {
 
             {/* Timed events */}
             {timed.map((ev, i) => (
-              <EventCard key={ev.id} ev={ev} idx={i} />
+              <EventCard key={`${ev.id}-${i}`} ev={ev} idx={i} />
             ))}
           </div>
         </div>

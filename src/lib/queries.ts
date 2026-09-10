@@ -227,7 +227,7 @@ export function useOverdueTasks() {
 }
 
 export type TaskFilters = {
-  status?: 'todo' | 'doing' | 'done';
+  status?: Task['status'];
   priority?: 1 | 2 | 3;
   project_id?: string;
   tag?: string;
@@ -328,7 +328,9 @@ export function useCycleTaskStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, currentStatus, projectId }: { id: string; currentStatus: Task['status']; projectId: string }): Promise<Task> => {
-      const next: Task['status'] = currentStatus === 'todo' ? 'doing' : currentStatus === 'doing' ? 'done' : 'todo';
+      const cycle: Task['status'][] = ['backlog', 'todo', 'doing', 'waiting', 'done'];
+      const idx = cycle.indexOf(currentStatus);
+      const next: Task['status'] = cycle[(idx + 1) % cycle.length] ?? 'todo';
       const completed_at = next === 'done' ? new Date().toISOString() : null;
       const { data: result, error } = await supabase
         .from("tasks")
@@ -340,7 +342,9 @@ export function useCycleTaskStatus() {
       return result as unknown as Task;
     },
     onMutate: async ({ id, currentStatus, projectId }) => {
-      const next: Task['status'] = currentStatus === 'todo' ? 'doing' : currentStatus === 'doing' ? 'done' : 'todo';
+      const cycle: Task['status'][] = ['backlog', 'todo', 'doing', 'waiting', 'done'];
+      const idx = cycle.indexOf(currentStatus);
+      const next: Task['status'] = cycle[(idx + 1) % cycle.length] ?? 'todo';
       const qk = QK.tasksByProject(projectId);
       await qc.cancelQueries({ queryKey: qk });
       const prev = qc.getQueryData<Task[]>(qk);

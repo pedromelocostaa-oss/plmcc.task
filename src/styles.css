@@ -1,7 +1,6 @@
 @import "tailwindcss" source(none);
-@source "../src";
 @import "tw-animate-css";
-@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600;700&display=swap');
+@source "../src";
 
 @theme inline {
   --color-bg: #1A1A1A;

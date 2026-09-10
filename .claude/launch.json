@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "pedro-hq-dev",
-      "runtimeExecutable": "npm",
+      "name": "plmcc-dev",
+      "runtimeExecutable": "bun",
       "runtimeArgs": ["run", "dev"],
-      "port": 8080
+      "port": 3000
     }
   ]
 }

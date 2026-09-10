@@ -130,9 +130,11 @@ export function TasksView() {
         {/* Status */}
         <FilterGroup label="Status" value={statusFilter} onChange={(v) => setStatusFilter(v as typeof statusFilter)} options={[
           { value: "all", label: "Todos" },
+          { value: "backlog", label: "Backlog" },
           { value: "todo", label: "A fazer" },
-          { value: "doing", label: "Em andamento" },
-          { value: "done", label: "Concluída" },
+          { value: "doing", label: "Fazendo" },
+          { value: "waiting", label: "Aguardando" },
+          { value: "done", label: "Finalizado" },
         ]} />
 
         <div style={{ width: 1, height: 24, background: colors.border }} />

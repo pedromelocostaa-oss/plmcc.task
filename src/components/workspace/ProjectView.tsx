@@ -265,9 +265,11 @@ function TasksTab(props: TasksTabProps) {
         { label: "P3 · BAIXA", items: tasks.filter((t) => t.priority === 3) },
       ]
     : [
-        { label: "A FAZER", items: tasks.filter((t) => t.status === "todo") },
-        { label: "EM ANDAMENTO", items: tasks.filter((t) => t.status === "doing") },
-        { label: "CONCLUÍDA", items: tasks.filter((t) => t.status === "done") },
+        { label: "BACKLOG", items: tasks.filter((t) => t.status === "backlog") },
+        { label: "A FAZER NO DIA", items: tasks.filter((t) => t.status === "todo") },
+        { label: "FAZENDO", items: tasks.filter((t) => t.status === "doing") },
+        { label: "AGUARDANDO", items: tasks.filter((t) => t.status === "waiting") },
+        { label: "FINALIZADO", items: tasks.filter((t) => t.status === "done") },
       ];
 
   return (
