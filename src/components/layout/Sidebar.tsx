@@ -4,7 +4,7 @@ import {
   Home, ListChecks, Search, Bookmark, Plus, Download,
   Archive, ChevronDown, ChevronRight, RotateCcw, Sun, Moon,
   BarChart2, PanelLeftClose, PanelLeftOpen, FileText, ShoppingCart, CalendarDays,
-  Wallet, Landmark, Tag, Receipt,
+  Wallet, Landmark, Tag, Receipt, CreditCard, RefreshCw,
 } from "lucide-react";
 import { MiniCalendar } from "@/components/workspace/MiniCalendar";
 import {
@@ -188,6 +188,8 @@ export function Sidebar() {
               <NavLink to="/financas/lancamentos" tint={NAV_TINTS.financas} icon={<Receipt size={12} strokeWidth={2.25} />} label="Lançamentos" active={currentPath === "/financas/lancamentos"} collapsed={false} />
               <NavLink to="/financas/contas" tint={NAV_TINTS.financas} icon={<Landmark size={12} strokeWidth={2.25} />} label="Contas" active={currentPath === "/financas/contas"} collapsed={false} />
               <NavLink to="/financas/categorias" tint={NAV_TINTS.financas} icon={<Tag size={12} strokeWidth={2.25} />} label="Categorias" active={currentPath === "/financas/categorias"} collapsed={false} />
+              <NavLink to="/financas/cartoes" tint={NAV_TINTS.financas} icon={<CreditCard size={12} strokeWidth={2.25} />} label="Cartões" active={currentPath === "/financas/cartoes"} collapsed={false} />
+              <NavLink to="/financas/recorrencias" tint={NAV_TINTS.financas} icon={<RefreshCw size={12} strokeWidth={2.25} />} label="Recorrências" active={currentPath === "/financas/recorrencias"} collapsed={false} />
             </div>
           )}
           <NavLink to="/notes" tint={NAV_TINTS.notes} icon={<FileText size={13} strokeWidth={2.25} />} label="Anotações" active={currentPath === "/notes"} collapsed={collapsed} />

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Conta, ContaTipo, Categoria, CategoriaTipo, Lancamento } from "./types";
+import type { Conta, ContaTipo, Categoria, CategoriaTipo, Lancamento, Cartao, Fatura, Recorrencia, RecorrenciaFrequencia } from "./types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -12,6 +12,9 @@ export const FQK = {
   categorias: ["financas", "categorias"] as const,
   lancamentos: (filters?: Record<string, unknown>) => ["financas", "lancamentos", filters ?? {}] as const,
   resumo: (mes?: string) => ["financas", "resumo", mes ?? ""] as const,
+  cartoes: ["financas", "cartoes"] as const,
+  faturas: (cartaoId?: string) => ["financas", "faturas", cartaoId ?? ""] as const,
+  recorrencias: ["financas", "recorrencias"] as const,
 } as const;
 
 // ── Contas ──────────────────────────────────────────────────────────────────
@@ -266,5 +269,174 @@ export function useResumoMes(mes?: string) {
       }
       return { receitas, despesas, saldo: receitas - despesas, total: rows.length };
     },
+  });
+}
+
+// ── Cartões ────────────────────────────────────────────────────────────────
+
+export function useCartoes() {
+  return useQuery({
+    queryKey: FQK.cartoes,
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("financas_cartoes")
+        .select("*, conta:financas_contas(*)")
+        .order("created_at");
+      if (error) throw error;
+      return data as (Cartao & { conta: Conta })[];
+    },
+  });
+}
+
+export function useCreateCartao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      conta_id: string; limite?: number; dia_fechamento: number;
+      dia_vencimento: number; bandeira?: string; ultimos_digitos?: string;
+    }) => {
+      const { data, error } = await db
+        .from("financas_cartoes")
+        .insert(input)
+        .select("*, conta:financas_contas(*)")
+        .single();
+      if (error) throw error;
+      return data as Cartao & { conta: Conta };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: FQK.cartoes }),
+  });
+}
+
+export function useUpdateCartao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Pick<Cartao, "limite" | "dia_fechamento" | "dia_vencimento" | "bandeira" | "ultimos_digitos">> }) => {
+      const { error } = await db.from("financas_cartoes").update(data).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: FQK.cartoes }),
+  });
+}
+
+export function useDeleteCartao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await db.from("financas_cartoes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: FQK.cartoes }),
+  });
+}
+
+// ── Faturas ────────────────────────────────────────────────────────────────
+
+export function useFaturas(cartaoId?: string) {
+  return useQuery({
+    queryKey: FQK.faturas(cartaoId),
+    enabled: !!cartaoId,
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("financas_faturas")
+        .select("*")
+        .eq("cartao_id", cartaoId)
+        .order("mes_referencia", { ascending: false })
+        .limit(12);
+      if (error) throw error;
+      return data as Fatura[];
+    },
+  });
+}
+
+export function useCreateFatura() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Omit<Fatura, "id" | "user_id" | "created_at">) => {
+      const { data, error } = await db
+        .from("financas_faturas")
+        .insert(input)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as Fatura;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["financas", "faturas"] }),
+  });
+}
+
+export function useUpdateFatura() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Pick<Fatura, "paga" | "data_pagamento" | "valor_total">> }) => {
+      const { error } = await db.from("financas_faturas").update(data).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["financas", "faturas"] }),
+  });
+}
+
+// ── Recorrências ───────────────────────────────────────────────────────────
+
+export function useRecorrencias() {
+  return useQuery({
+    queryKey: FQK.recorrencias,
+    queryFn: async () => {
+      const { data, error } = await db
+        .from("financas_recorrencias")
+        .select("*, conta:financas_contas(*), categoria:financas_categorias(*)")
+        .eq("ativa", true)
+        .order("proxima_geracao");
+      if (error) throw error;
+      return data as (Recorrencia & { conta: Conta; categoria: Categoria | null })[];
+    },
+  });
+}
+
+export function useCreateRecorrencia() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      conta_id: string; categoria_id?: string; descricao: string; valor: number;
+      tipo: "receita" | "despesa"; frequencia: RecorrenciaFrequencia;
+      dia_do_mes?: number; data_inicio: string; data_fim?: string; gerar_como_pago?: boolean;
+    }) => {
+      const proxima_geracao = input.data_inicio;
+      const { data, error } = await db
+        .from("financas_recorrencias")
+        .insert({ ...input, proxima_geracao })
+        .select("*, conta:financas_contas(*), categoria:financas_categorias(*)")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: FQK.recorrencias }),
+  });
+}
+
+export function useUpdateRecorrencia() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Recorrencia> }) => {
+      const { error } = await db
+        .from("financas_recorrencias")
+        .update({ ...data, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: FQK.recorrencias }),
+  });
+}
+
+export function useDeleteRecorrencia() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await db
+        .from("financas_recorrencias")
+        .update({ ativa: false, updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: FQK.recorrencias }),
   });
 }

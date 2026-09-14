@@ -21,9 +21,11 @@ import { Route as FinancasIndexRouteImport } from './routes/financas/index'
 import { Route as TarefasTodasRouteImport } from './routes/tarefas/todas'
 import { Route as TarefasProximosRouteImport } from './routes/tarefas/proximos'
 import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
+import { Route as FinancasRecorrenciasRouteImport } from './routes/financas/recorrencias'
 import { Route as FinancasLancamentosRouteImport } from './routes/financas/lancamentos'
 import { Route as FinancasContasRouteImport } from './routes/financas/contas'
 import { Route as FinancasCategoriasRouteImport } from './routes/financas/categorias'
+import { Route as FinancasCartoesRouteImport } from './routes/financas/cartoes'
 import { Route as TarefasProjetosIdRouteImport } from './routes/tarefas/projetos.$id'
 
 const UpcomingRoute = UpcomingRouteImport.update({
@@ -86,6 +88,11 @@ const ProjectsIdRoute = ProjectsIdRouteImport.update({
   path: '/projects/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FinancasRecorrenciasRoute = FinancasRecorrenciasRouteImport.update({
+  id: '/financas/recorrencias',
+  path: '/financas/recorrencias',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FinancasLancamentosRoute = FinancasLancamentosRouteImport.update({
   id: '/financas/lancamentos',
   path: '/financas/lancamentos',
@@ -99,6 +106,11 @@ const FinancasContasRoute = FinancasContasRouteImport.update({
 const FinancasCategoriasRoute = FinancasCategoriasRouteImport.update({
   id: '/financas/categorias',
   path: '/financas/categorias',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinancasCartoesRoute = FinancasCartoesRouteImport.update({
+  id: '/financas/cartoes',
+  path: '/financas/cartoes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TarefasProjetosIdRoute = TarefasProjetosIdRouteImport.update({
@@ -115,9 +127,11 @@ export interface FileRoutesByFullPath {
   '/purchases': typeof PurchasesRoute
   '/tasks': typeof TasksRoute
   '/upcoming': typeof UpcomingRoute
+  '/financas/cartoes': typeof FinancasCartoesRoute
   '/financas/categorias': typeof FinancasCategoriasRoute
   '/financas/contas': typeof FinancasContasRoute
   '/financas/lancamentos': typeof FinancasLancamentosRoute
+  '/financas/recorrencias': typeof FinancasRecorrenciasRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/tarefas/proximos': typeof TarefasProximosRoute
   '/tarefas/todas': typeof TarefasTodasRoute
@@ -133,9 +147,11 @@ export interface FileRoutesByTo {
   '/purchases': typeof PurchasesRoute
   '/tasks': typeof TasksRoute
   '/upcoming': typeof UpcomingRoute
+  '/financas/cartoes': typeof FinancasCartoesRoute
   '/financas/categorias': typeof FinancasCategoriasRoute
   '/financas/contas': typeof FinancasContasRoute
   '/financas/lancamentos': typeof FinancasLancamentosRoute
+  '/financas/recorrencias': typeof FinancasRecorrenciasRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/tarefas/proximos': typeof TarefasProximosRoute
   '/tarefas/todas': typeof TarefasTodasRoute
@@ -152,9 +168,11 @@ export interface FileRoutesById {
   '/purchases': typeof PurchasesRoute
   '/tasks': typeof TasksRoute
   '/upcoming': typeof UpcomingRoute
+  '/financas/cartoes': typeof FinancasCartoesRoute
   '/financas/categorias': typeof FinancasCategoriasRoute
   '/financas/contas': typeof FinancasContasRoute
   '/financas/lancamentos': typeof FinancasLancamentosRoute
+  '/financas/recorrencias': typeof FinancasRecorrenciasRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/tarefas/proximos': typeof TarefasProximosRoute
   '/tarefas/todas': typeof TarefasTodasRoute
@@ -172,9 +190,11 @@ export interface FileRouteTypes {
     | '/purchases'
     | '/tasks'
     | '/upcoming'
+    | '/financas/cartoes'
     | '/financas/categorias'
     | '/financas/contas'
     | '/financas/lancamentos'
+    | '/financas/recorrencias'
     | '/projects/$id'
     | '/tarefas/proximos'
     | '/tarefas/todas'
@@ -190,9 +210,11 @@ export interface FileRouteTypes {
     | '/purchases'
     | '/tasks'
     | '/upcoming'
+    | '/financas/cartoes'
     | '/financas/categorias'
     | '/financas/contas'
     | '/financas/lancamentos'
+    | '/financas/recorrencias'
     | '/projects/$id'
     | '/tarefas/proximos'
     | '/tarefas/todas'
@@ -208,9 +230,11 @@ export interface FileRouteTypes {
     | '/purchases'
     | '/tasks'
     | '/upcoming'
+    | '/financas/cartoes'
     | '/financas/categorias'
     | '/financas/contas'
     | '/financas/lancamentos'
+    | '/financas/recorrencias'
     | '/projects/$id'
     | '/tarefas/proximos'
     | '/tarefas/todas'
@@ -227,9 +251,11 @@ export interface RootRouteChildren {
   PurchasesRoute: typeof PurchasesRoute
   TasksRoute: typeof TasksRoute
   UpcomingRoute: typeof UpcomingRoute
+  FinancasCartoesRoute: typeof FinancasCartoesRoute
   FinancasCategoriasRoute: typeof FinancasCategoriasRoute
   FinancasContasRoute: typeof FinancasContasRoute
   FinancasLancamentosRoute: typeof FinancasLancamentosRoute
+  FinancasRecorrenciasRoute: typeof FinancasRecorrenciasRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
   TarefasProximosRoute: typeof TarefasProximosRoute
   TarefasTodasRoute: typeof TarefasTodasRoute
@@ -324,6 +350,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/financas/recorrencias': {
+      id: '/financas/recorrencias'
+      path: '/financas/recorrencias'
+      fullPath: '/financas/recorrencias'
+      preLoaderRoute: typeof FinancasRecorrenciasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/financas/lancamentos': {
       id: '/financas/lancamentos'
       path: '/financas/lancamentos'
@@ -345,6 +378,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FinancasCategoriasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/financas/cartoes': {
+      id: '/financas/cartoes'
+      path: '/financas/cartoes'
+      fullPath: '/financas/cartoes'
+      preLoaderRoute: typeof FinancasCartoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tarefas/projetos/$id': {
       id: '/tarefas/projetos/$id'
       path: '/tarefas/projetos/$id'
@@ -363,9 +403,11 @@ const rootRouteChildren: RootRouteChildren = {
   PurchasesRoute: PurchasesRoute,
   TasksRoute: TasksRoute,
   UpcomingRoute: UpcomingRoute,
+  FinancasCartoesRoute: FinancasCartoesRoute,
   FinancasCategoriasRoute: FinancasCategoriasRoute,
   FinancasContasRoute: FinancasContasRoute,
   FinancasLancamentosRoute: FinancasLancamentosRoute,
+  FinancasRecorrenciasRoute: FinancasRecorrenciasRoute,
   ProjectsIdRoute: ProjectsIdRoute,
   TarefasProximosRoute: TarefasProximosRoute,
   TarefasTodasRoute: TarefasTodasRoute,
