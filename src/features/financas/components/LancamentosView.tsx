@@ -7,6 +7,7 @@ import {
 } from "../lib/queries";
 import type { LancamentoTipo } from "../lib/types";
 import { colors, radius } from "@/lib/tokens";
+import { useAllTasks } from "@/lib/queries";
 
 const TIPO_LABELS: Record<LancamentoTipo, string> = {
   receita: "Receita",
@@ -47,6 +48,7 @@ function today() {
 export function LancamentosView() {
   const { data: contas = [] } = useContas();
   const { data: categorias = [] } = useCategorias();
+  const { data: tarefas = [] } = useAllTasks({ status: "todo" });
   const createLanc = useCreateLancamento();
   const updateLanc = useUpdateLancamento();
   const deleteLanc = useDeleteLancamento();
@@ -73,10 +75,11 @@ export function LancamentosView() {
   const [categoriaId, setCategoriaId] = useState("");
   const [pago, setPago] = useState(true);
   const [observacao, setObservacao] = useState("");
+  const [tarefaId, setTarefaId] = useState("");
 
   function resetForm() {
     setDescricao(""); setValor(""); setTipo("despesa"); setData(today());
-    setContaId(""); setCategoriaId(""); setPago(true); setObservacao("");
+    setContaId(""); setCategoriaId(""); setPago(true); setObservacao(""); setTarefaId("");
     setShowForm(false); setEditingId(null);
   }
 
@@ -90,6 +93,7 @@ export function LancamentosView() {
     setCategoriaId(l.categoria_id ?? "");
     setPago(l.pago);
     setObservacao(l.observacao ?? "");
+    setTarefaId(l.tarefa_id ?? "");
     setShowForm(true);
   }
 
@@ -106,6 +110,7 @@ export function LancamentosView() {
           data: {
             descricao: descricao.trim(), valor: Number(valor), tipo, data,
             conta_id: contaId, categoria_id: categoriaId || null, pago, observacao: observacao || null,
+            tarefa_id: tarefaId || null,
           },
         });
         toast.success("Lançamento atualizado");
@@ -114,7 +119,7 @@ export function LancamentosView() {
           descricao: descricao.trim(), valor: Number(valor), tipo, data,
           conta_id: contaId, categoria_id: categoriaId || null, pago, observacao: observacao || null,
           data_pagamento: pago ? data : null, conta_destino_id: null, fatura_id: null,
-          parcela_atual: null, parcela_total: null, compra_pai_id: null, recorrencia_id: null, tarefa_id: null,
+          parcela_atual: null, parcela_total: null, compra_pai_id: null, recorrencia_id: null, tarefa_id: tarefaId || null,
         });
         toast.success("Lançamento criado");
       }
@@ -248,6 +253,11 @@ export function LancamentosView() {
 
           <input placeholder="Observação (opcional)" value={observacao}
             onChange={(e) => setObservacao(e.target.value)} style={inputStyle} />
+
+          <select value={tarefaId} onChange={(e) => setTarefaId(e.target.value)} style={inputStyle}>
+            <option value="">Vincular tarefa (opcional)</option>
+            {tarefas.map((t: any) => <option key={t.id} value={t.id}>{t.title}</option>)}
+          </select>
 
           <div style={{ display: "flex", gap: 8 }}>
             <button type="submit" style={accentBtn}>{editingId ? "Salvar" : "Criar"}</button>
