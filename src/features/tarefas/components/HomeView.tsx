@@ -11,7 +11,7 @@ import { showUndoToast } from "@/components/ui/undo-toast";
 import { useProjects, useTasksForDate, useSetTaskStatus, useDeleteTask } from "@/lib/queries";
 import { useQuickAdd } from "@/routes/__root";
 import { WeeklyGoalBanner } from "@/features/tarefas/components/WeeklyGoalBanner";
-import { FinanceWidget } from "@/features/financas/components/FinanceWidget";
+
 import type { Task } from "@/lib/types";
 import { tagColor } from "@/lib/format";
 import { TaskDetailPanel } from "@/features/tarefas/components/TaskDetailPanel";
@@ -1185,7 +1185,6 @@ export function HomeView() {
           <PullToRefresh onRefresh={() => qc.invalidateQueries({ queryKey: ["tasks"] })}>
             <div style={{ padding: "12px 12px 80px" }}>
               <WeeklyGoalBanner />
-              <div style={{ marginBottom: 10 }}><FinanceWidget /></div>
               {isLoading ? (
                 <>
                   {Array.from({ length: 4 }, (_, i) => <TaskCardSkeleton key={i} />)}
@@ -1245,7 +1244,6 @@ export function HomeView() {
             }}>
               {/* Objetivo da semana */}
               <WeeklyGoalBanner />
-              <FinanceWidget />
 
               {/* Colunas kanban */}
               <div style={{ flex: 1, display: "flex", gap: 10, overflow: "hidden", minHeight: 0 }}>
