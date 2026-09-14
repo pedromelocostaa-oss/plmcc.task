@@ -16,7 +16,12 @@ import { Route as NotesRouteImport } from './routes/notes'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BookmarksRouteImport } from './routes/bookmarks'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TarefasIndexRouteImport } from './routes/tarefas/index'
+import { Route as FinancasIndexRouteImport } from './routes/financas/index'
+import { Route as TarefasTodasRouteImport } from './routes/tarefas/todas'
+import { Route as TarefasProximosRouteImport } from './routes/tarefas/proximos'
 import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
+import { Route as TarefasProjetosIdRouteImport } from './routes/tarefas/projetos.$id'
 
 const UpcomingRoute = UpcomingRouteImport.update({
   id: '/upcoming',
@@ -53,9 +58,34 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TarefasIndexRoute = TarefasIndexRouteImport.update({
+  id: '/tarefas/',
+  path: '/tarefas/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinancasIndexRoute = FinancasIndexRouteImport.update({
+  id: '/financas/',
+  path: '/financas/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TarefasTodasRoute = TarefasTodasRouteImport.update({
+  id: '/tarefas/todas',
+  path: '/tarefas/todas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TarefasProximosRoute = TarefasProximosRouteImport.update({
+  id: '/tarefas/proximos',
+  path: '/tarefas/proximos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsIdRoute = ProjectsIdRouteImport.update({
   id: '/projects/$id',
   path: '/projects/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TarefasProjetosIdRoute = TarefasProjetosIdRouteImport.update({
+  id: '/tarefas/projetos/$id',
+  path: '/tarefas/projetos/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -68,6 +98,11 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/upcoming': typeof UpcomingRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/tarefas/proximos': typeof TarefasProximosRoute
+  '/tarefas/todas': typeof TarefasTodasRoute
+  '/financas/': typeof FinancasIndexRoute
+  '/tarefas/': typeof TarefasIndexRoute
+  '/tarefas/projetos/$id': typeof TarefasProjetosIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +113,11 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/upcoming': typeof UpcomingRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/tarefas/proximos': typeof TarefasProximosRoute
+  '/tarefas/todas': typeof TarefasTodasRoute
+  '/financas': typeof FinancasIndexRoute
+  '/tarefas': typeof TarefasIndexRoute
+  '/tarefas/projetos/$id': typeof TarefasProjetosIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +129,11 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/upcoming': typeof UpcomingRoute
   '/projects/$id': typeof ProjectsIdRoute
+  '/tarefas/proximos': typeof TarefasProximosRoute
+  '/tarefas/todas': typeof TarefasTodasRoute
+  '/financas/': typeof FinancasIndexRoute
+  '/tarefas/': typeof TarefasIndexRoute
+  '/tarefas/projetos/$id': typeof TarefasProjetosIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +146,11 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/upcoming'
     | '/projects/$id'
+    | '/tarefas/proximos'
+    | '/tarefas/todas'
+    | '/financas/'
+    | '/tarefas/'
+    | '/tarefas/projetos/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +161,11 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/upcoming'
     | '/projects/$id'
+    | '/tarefas/proximos'
+    | '/tarefas/todas'
+    | '/financas'
+    | '/tarefas'
+    | '/tarefas/projetos/$id'
   id:
     | '__root__'
     | '/'
@@ -121,6 +176,11 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/upcoming'
     | '/projects/$id'
+    | '/tarefas/proximos'
+    | '/tarefas/todas'
+    | '/financas/'
+    | '/tarefas/'
+    | '/tarefas/projetos/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +192,11 @@ export interface RootRouteChildren {
   TasksRoute: typeof TasksRoute
   UpcomingRoute: typeof UpcomingRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
+  TarefasProximosRoute: typeof TarefasProximosRoute
+  TarefasTodasRoute: typeof TarefasTodasRoute
+  FinancasIndexRoute: typeof FinancasIndexRoute
+  TarefasIndexRoute: typeof TarefasIndexRoute
+  TarefasProjetosIdRoute: typeof TarefasProjetosIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -185,11 +250,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tarefas/': {
+      id: '/tarefas/'
+      path: '/tarefas'
+      fullPath: '/tarefas/'
+      preLoaderRoute: typeof TarefasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/financas/': {
+      id: '/financas/'
+      path: '/financas'
+      fullPath: '/financas/'
+      preLoaderRoute: typeof FinancasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tarefas/todas': {
+      id: '/tarefas/todas'
+      path: '/tarefas/todas'
+      fullPath: '/tarefas/todas'
+      preLoaderRoute: typeof TarefasTodasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tarefas/proximos': {
+      id: '/tarefas/proximos'
+      path: '/tarefas/proximos'
+      fullPath: '/tarefas/proximos'
+      preLoaderRoute: typeof TarefasProximosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/projects/$id': {
       id: '/projects/$id'
       path: '/projects/$id'
       fullPath: '/projects/$id'
       preLoaderRoute: typeof ProjectsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tarefas/projetos/$id': {
+      id: '/tarefas/projetos/$id'
+      path: '/tarefas/projetos/$id'
+      fullPath: '/tarefas/projetos/$id'
+      preLoaderRoute: typeof TarefasProjetosIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -204,6 +304,11 @@ const rootRouteChildren: RootRouteChildren = {
   TasksRoute: TasksRoute,
   UpcomingRoute: UpcomingRoute,
   ProjectsIdRoute: ProjectsIdRoute,
+  TarefasProximosRoute: TarefasProximosRoute,
+  TarefasTodasRoute: TarefasTodasRoute,
+  FinancasIndexRoute: FinancasIndexRoute,
+  TarefasIndexRoute: TarefasIndexRoute,
+  TarefasProjetosIdRoute: TarefasProjetosIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -254,7 +254,7 @@ function AllTaskCard({
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 3, alignItems: "center" }}>
           {task.project && (
-            <Link to="/projects/$id" params={{ id: task.project_id }} style={{
+            <Link to="/tarefas/projetos/$id" params={{ id: task.project_id }} style={{
               display: "inline-flex", alignItems: "center", gap: 4, textDecoration: "none",
               fontSize: 11, color: colors.textSecondary,
             }}>

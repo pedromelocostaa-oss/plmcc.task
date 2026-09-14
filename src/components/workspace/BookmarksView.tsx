@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { BookmarkCardSkeleton } from "@/components/ui/skeleton-card";
-import { Search, Plus, ExternalLink, Trash2, Link as LinkIcon, Pencil, Check, X } from "lucide-react";
+import { Search, Plus, ExternalLink, Trash2, Link as LinkIcon, Pencil, Check, X, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { useBookmarks, useCreateBookmark, useDeleteBookmark, useUpdateBookmark } from "@/lib/queries";
 import { hostname } from "@/lib/format";
@@ -24,6 +24,13 @@ export function BookmarksView() {
     const tags = Object.keys(map).filter((t) => t).sort();
     if (map[""]) tags.push("");
     return tags.map((t) => ({ tag: t, items: map[t] }));
+  }, [bookmarks]);
+
+  // Flags (tags) já existentes — para sugerir/reaproveitar em vez de digitar do zero
+  const existingTags = useMemo(() => {
+    const set = new Set<string>();
+    bookmarks.forEach((b) => { if (b.tag?.trim()) set.add(b.tag.trim()); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
   }, [bookmarks]);
 
   async function handleAdd() {
@@ -71,9 +78,9 @@ export function BookmarksView() {
           background: colors.surface, border: `1px solid ${colors.accent}`, borderRadius: 10,
           padding: 16, marginBottom: 16, display: "flex", flexDirection: "column", gap: 8,
         }}>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título (opcional)" style={inputStyle} />
+          <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título (opcional)" style={inputStyle} />
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." style={inputStyle} />
-          <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Tag (ex: trabalho, leitura)" style={inputStyle} />
+          <TagCombobox value={tag} onChange={setTag} existingTags={existingTags} />
           <div style={{ display: "flex", gap: 6 }}>
             <button onClick={handleAdd} style={accentBtn}>Salvar</button>
             <button onClick={() => setAdding(false)} style={ghostBtn}>Cancelar</button>
@@ -111,6 +118,7 @@ export function BookmarksView() {
                   <BookmarkCard
                     key={b.id}
                     bookmark={b}
+                    existingTags={existingTags}
                     onDelete={() => deleteBookmark.mutate(b.id)}
                   />
                 ))}
@@ -123,7 +131,7 @@ export function BookmarksView() {
   );
 }
 
-function BookmarkCard({ bookmark: b, onDelete }: { bookmark: Bookmark; onDelete: () => void }) {
+function BookmarkCard({ bookmark: b, existingTags, onDelete }: { bookmark: Bookmark; existingTags: string[]; onDelete: () => void }) {
   const updateBookmark = useUpdateBookmark();
   const [hov, setHov] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -178,12 +186,7 @@ function BookmarkCard({ bookmark: b, onDelete }: { bookmark: Bookmark; onDelete:
           placeholder="https://..."
           style={cardInputStyle}
         />
-        <input
-          value={editTag}
-          onChange={(e) => setEditTag(e.target.value)}
-          placeholder="Tag"
-          style={cardInputStyle}
-        />
+        <TagCombobox value={editTag} onChange={setEditTag} existingTags={existingTags} inputStyle={cardInputStyle} />
         <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
           <button
             onClick={saveEdit}
@@ -247,6 +250,97 @@ function BookmarkCard({ bookmark: b, onDelete }: { bookmark: Bookmark; onDelete:
     </div>
   );
 }
+
+// ── TagCombobox ───────────────────────────────────────────────────────────────
+// Campo de "flag" (tag) com autocompletar: mostra as flags já existentes para
+// reaproveitar com um clique, ou permite digitar e criar uma nova na hora.
+
+function TagCombobox({
+  value, onChange, existingTags, placeholder, inputStyle: customInputStyle,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  existingTags: string[];
+  placeholder?: string;
+  inputStyle?: React.CSSProperties;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const filtered = useMemo(() => {
+    const q = value.trim().toLowerCase();
+    if (!q) return existingTags;
+    return existingTags.filter((t) => t.toLowerCase().includes(q));
+  }, [value, existingTags]);
+
+  const trimmed = value.trim();
+  const exactMatch = existingTags.some((t) => t.toLowerCase() === trimmed.toLowerCase());
+
+  return (
+    <div style={{ position: "relative" }}>
+      <div style={{ position: "relative" }}>
+        <Tag size={12} color="#a855f7" style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+        <input
+          value={value}
+          onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => { setTimeout(() => setOpen(false), 130); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); setOpen(false); }
+            if (e.key === "Escape") { setOpen(false); }
+          }}
+          placeholder={placeholder ?? "Flag — escolha uma existente ou crie uma nova"}
+          style={{ ...(customInputStyle ?? inputStyle), paddingLeft: 28 }}
+        />
+      </div>
+      {open && (filtered.length > 0 || (trimmed && !exactMatch)) && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 30,
+          background: "var(--hq-surface, #1c1c1e)", border: `1px solid ${colors.border}`,
+          borderRadius: 8, boxShadow: "0 10px 28px rgba(0,0,0,0.4)",
+          maxHeight: 190, overflowY: "auto", padding: 4,
+        }}>
+          {filtered.length > 0 && (
+            <div style={{ fontSize: 9.5, color: colors.textMuted, padding: "4px 8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Flags existentes
+            </div>
+          )}
+          {filtered.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); onChange(t); setOpen(false); }}
+              style={comboItemStyle}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--hq-inlay-bg)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            >
+              <Tag size={11} color="#a855f7" />
+              <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t}</span>
+              {value.trim().toLowerCase() === t.toLowerCase() && <Check size={12} color={colors.accent} />}
+            </button>
+          ))}
+          {trimmed && !exactMatch && (
+            <button
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); onChange(trimmed); setOpen(false); }}
+              style={{ ...comboItemStyle, color: colors.accent, fontWeight: 600 }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--hq-inlay-bg)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+            >
+              <Plus size={11} />
+              <span>Criar nova flag "{trimmed}"</span>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const comboItemStyle: React.CSSProperties = {
+  display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left",
+  padding: "6px 8px", background: "transparent", border: "none", borderRadius: 6,
+  cursor: "pointer", color: "var(--hq-text)", fontSize: 12.5,
+};
 
 const inputStyle: React.CSSProperties = {
   background: colors.bg, border: `1px solid ${colors.border}`, color: colors.text,

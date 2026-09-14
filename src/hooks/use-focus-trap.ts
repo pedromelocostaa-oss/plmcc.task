@@ -10,8 +10,15 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active = true) 
       )
     );
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    const first = getFocusables()[0];
-    first?.focus();
+    // Prefere o elemento com [autofocus] (ex: input de título do modal).
+    // Sem isso, o focus trap focava no primeiro elemento interativo (botão X
+    // ou aba), roubando o foco do input logo após o autoFocus do React agir —
+    // o usuário precisava clicar manualmente no campo para começar a digitar.
+    const autoFocusEl = el.querySelector<HTMLElement>("[autofocus]");
+    const first = autoFocusEl ?? getFocusables()[0];
+    // Pequeno delay para deixar a animação de entrada do modal completar
+    // antes de focar — evita comportamento errático em alguns browsers.
+    setTimeout(() => first?.focus(), 60);
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
       const focusables = getFocusables();

@@ -1,17 +1,18 @@
 ﻿import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, ListChecks, BarChart2, ShoppingCart, Plus, FileText, Bookmark, Search, MoreHorizontal, X } from "lucide-react";
+import { Home, ListChecks, BarChart2, ShoppingCart, Plus, FileText, Bookmark, Search, MoreHorizontal, X, Wallet } from "lucide-react";
 import { useQuickAdd, useSearch } from "@/routes/__root";
 import { colors, spring, radius } from "@/lib/tokens";
 
 type TabDef = { to: string; icon: React.ComponentType<{ size: number; strokeWidth: number }>; label: string };
 
 const MAIN_TABS: TabDef[] = [
-  { to: "/",      icon: Home,       label: "Hoje"    },
-  { to: "/tasks", icon: ListChecks, label: "Tarefas" },
+  { to: "/",              icon: Home,       label: "Hoje"    },
+  { to: "/tarefas/todas", icon: ListChecks, label: "Tarefas" },
 ];
 
 const MORE_TABS: TabDef[] = [
+  { to: "/financas",  icon: Wallet,       label: "Finanças"  },
   { to: "/dashboard", icon: BarChart2,    label: "Dashboard" },
   { to: "/purchases", icon: ShoppingCart, label: "Compras"   },
   { to: "/notes",     icon: FileText,     label: "Anotações" },

@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { TaskCardSkeleton } from "@/components/ui/skeleton-card";
 import { useLongPress } from "@/hooks/use-long-press";
-import { SwipeableCard } from "@/components/workspace/SwipeableCard";
+import { SwipeableCard } from "@/features/tarefas/components/SwipeableCard";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { haptics } from "@/lib/haptics";
 import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2, Pencil, ChevronsLeft, ChevronsRight } from "lucide-react";
@@ -10,16 +10,16 @@ import { toast } from "sonner";
 import { showUndoToast } from "@/components/ui/undo-toast";
 import { useProjects, useTasksForDate, useSetTaskStatus, useDeleteTask } from "@/lib/queries";
 import { useQuickAdd } from "@/routes/__root";
-import { WeeklyGoalBanner } from "@/components/workspace/WeeklyGoalBanner";
+import { WeeklyGoalBanner } from "@/features/tarefas/components/WeeklyGoalBanner";
 import type { Task } from "@/lib/types";
 import { tagColor } from "@/lib/format";
-import { TaskDetailPanel } from "@/components/workspace/TaskDetailPanel";
+import { TaskDetailPanel } from "@/features/tarefas/components/TaskDetailPanel";
 import { colors, spring, radius } from "@/lib/tokens";
-import { DayCalendar, fetchCalendarEvents } from "@/components/workspace/DayCalendar";
+import { DayCalendar, fetchCalendarEvents } from "@/features/tarefas/components/DayCalendar";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useResizable } from "@/hooks/use-resizable";
 import type { CalendarEvent } from "@/lib/calendar-api";
-import { Route } from "@/routes/index";
+import { useSearch as useRouterSearch } from "@tanstack/react-router";
 
 // ── date helpers ─────────────────────────────────────────────────────────────
 
@@ -815,7 +815,7 @@ function KanbanColumn({
 // ── HomeView ──────────────────────────────────────────────────────────────────
 
 export function HomeView() {
-  const { date: searchDate } = Route.useSearch();
+  const { date: searchDate } = useRouterSearch({ strict: false }) as { date?: string };
   const { data: projects = [] } = useProjects();
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     if (searchDate) {
