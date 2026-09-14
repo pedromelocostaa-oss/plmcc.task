@@ -829,6 +829,7 @@ export function HomeView() {
   const [sortByPriority, setSortByPriority] = useState(false);
   const [mobileColumn, setMobileColumn] = useState<Task["status"]>("backlog");
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showDesktopCalendar, setShowDesktopCalendar] = useState(true);
   const [calendarView, setCalendarView] = useState<"day" | "week">("day");
   const [calendarExpanded, setCalendarExpanded] = useState(false);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
@@ -1109,25 +1110,23 @@ export function HomeView() {
             </button>
           </div>
 
-          {/* Calendar toggle — mobile only */}
-          {isMobile && (
-            <button
-              onClick={() => setShowCalendar((v) => !v)}
-              style={{
-                display: "flex", alignItems: "center", gap: 4,
-                padding: "4px 10px",
-                background: showCalendar ? colors.accentBg : "transparent",
-                border: showCalendar ? `1px solid ${colors.accentBorder}` : `1px solid ${colors.separator}`,
-                borderRadius: radius.sm,
-                color: showCalendar ? colors.accent : colors.textSecondary,
-                cursor: "pointer", fontSize: 12, fontWeight: showCalendar ? 600 : 400,
-                flexShrink: 0,
-              }}
-            >
-              <Calendar size={12} />
-              Agenda
-            </button>
-          )}
+          {/* Calendar toggle */}
+          <button
+            onClick={() => isMobile ? setShowCalendar((v) => !v) : setShowDesktopCalendar((v) => !v)}
+            style={{
+              display: "flex", alignItems: "center", gap: 4,
+              padding: "4px 10px",
+              background: (isMobile ? showCalendar : showDesktopCalendar) ? colors.accentBg : "transparent",
+              border: (isMobile ? showCalendar : showDesktopCalendar) ? `1px solid ${colors.accentBorder}` : `1px solid ${colors.separator}`,
+              borderRadius: radius.sm,
+              color: (isMobile ? showCalendar : showDesktopCalendar) ? colors.accent : colors.textSecondary,
+              cursor: "pointer", fontSize: 12, fontWeight: (isMobile ? showCalendar : showDesktopCalendar) ? 600 : 400,
+              flexShrink: 0,
+            }}
+          >
+            <Calendar size={12} />
+            Agenda
+          </button>
         </div>
 
         {/* Mobile — segmented column switcher */}
@@ -1283,7 +1282,7 @@ export function HomeView() {
           )}
 
           {/* Resize handle — between kanban and calendar, desktop only, not expanded */}
-          {!calendarExpanded && (
+          {!calendarExpanded && showDesktopCalendar && (
             <div
               onMouseDown={startResize}
               onDoubleClick={resetWidth}
@@ -1294,8 +1293,8 @@ export function HomeView() {
             </div>
           )}
 
-          {/* Calendar panel — desktop always visible */}
-          {calendarPanel}
+          {/* Calendar panel — desktop, togglable */}
+          {showDesktopCalendar && calendarPanel}
         </div>
       )}
 

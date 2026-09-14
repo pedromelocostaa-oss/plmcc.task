@@ -7,8 +7,9 @@ import { useEffect, useState, useRef } from "react";
 
 const PING_URL = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/`;
 const PING_INTERVAL = 20_000;   // verifica a cada 20s quando offline
-const INITIAL_DELAY = 6_000;    // aguarda 6s antes do primeiro check (evita flash no load)
-const PING_TIMEOUT  = 5_000;    // timeout de 5s por ping
+const INITIAL_DELAY = 10_000;   // aguarda 10s antes do primeiro check (evita flash no load)
+const PING_TIMEOUT  = 8_000;    // timeout de 8s por ping
+const RETRY_DELAY   = 3_000;    // retry após 3s se o primeiro ping falhar
 
 async function ping(): Promise<boolean> {
   try {
@@ -41,9 +42,14 @@ export function useOnline(): boolean {
     cancelled.current = false;
 
     // Primeiro check atrasado — dá tempo do SW se resolver e do app carregar
+    // Se falhar, tenta mais uma vez antes de declarar offline
     const initial = setTimeout(async () => {
       if (cancelled.current) return;
-      const ok = await ping();
+      let ok = await ping();
+      if (!ok && !cancelled.current) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAY));
+        if (!cancelled.current) ok = await ping();
+      }
       if (!cancelled.current) setOnline(ok);
     }, INITIAL_DELAY);
 
