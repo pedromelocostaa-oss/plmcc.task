@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, ArrowRight } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAllTasks, useBookmarks, useProjects, useNotes } from "@/lib/queries";
+import { useLancamentos, useContas } from "@/features/financas/lib/queries";
 import { hostname } from "@/lib/format";
 import { colors, spring, radius } from "@/lib/tokens";
 
@@ -16,6 +17,8 @@ export function SearchModal({ onClose, onOpenTaskDetail }: {
   const { data: bookmarks = [] } = useBookmarks();
   const { data: projects = [] } = useProjects();
   const { data: notes = [] } = useNotes();
+  const { data: lancamentos = [] } = useLancamentos();
+  const { data: contas = [] } = useContas();
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -110,8 +113,40 @@ export function SearchModal({ onClose, onOpenTaskDetail }: {
       }
     });
 
+    // Lançamentos financeiros
+    (lancamentos as any[]).forEach((l) => {
+      const match =
+        l.descricao.toLowerCase().includes(s) ||
+        (l.observacao ?? "").toLowerCase().includes(s);
+      if (match) {
+        const valor = Number(l.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        out.push({
+          kind: "lançamento",
+          id: l.id,
+          title: l.descricao,
+          sub: `${l.tipo === "receita" ? "+" : "-"}${valor} · ${l.data}`,
+          color: l.tipo === "receita" ? "#30D158" : "#FF375F",
+          onClick: () => { nav({ to: "/financas/lancamentos" }); onClose(); },
+        });
+      }
+    });
+
+    // Contas financeiras
+    (contas as any[]).forEach((c) => {
+      if (c.nome.toLowerCase().includes(s)) {
+        out.push({
+          kind: "conta",
+          id: c.id,
+          title: c.nome,
+          sub: Number(c.saldo_inicial).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+          color: c.cor ?? "#0A84FF",
+          onClick: () => { nav({ to: "/financas/contas" }); onClose(); },
+        });
+      }
+    });
+
     return out.slice(0, 35);
-  }, [q, allTasks, bookmarks, projects, notes, nav, onClose, onOpenTaskDetail]);
+  }, [q, allTasks, bookmarks, projects, notes, lancamentos, contas, nav, onClose, onOpenTaskDetail]);
 
   const clampedIdx = Math.min(selectedIdx, Math.max(0, results.length - 1));
 

@@ -1,7 +1,7 @@
 {
   "name": "Pedro's HQ",
   "short_name": "HQ",
-  "description": "Command Center pessoal — projetos, tarefas, links e notas.",
+  "description": "Command Center pessoal — tarefas, finanças, links e notas.",
   "start_url": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "browser"],
@@ -35,6 +35,12 @@
       "name": "Meu dia",
       "short_name": "Hoje",
       "url": "/",
+      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Finanças",
+      "short_name": "Finanças",
+      "url": "/financas",
       "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
     },
     {
