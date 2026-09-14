@@ -21,6 +21,7 @@ import { Route as FinancasIndexRouteImport } from './routes/financas/index'
 import { Route as TarefasTodasRouteImport } from './routes/tarefas/todas'
 import { Route as TarefasProximosRouteImport } from './routes/tarefas/proximos'
 import { Route as ProjectsIdRouteImport } from './routes/projects/$id'
+import { Route as FinancasLancamentosRouteImport } from './routes/financas/lancamentos'
 import { Route as FinancasContasRouteImport } from './routes/financas/contas'
 import { Route as FinancasCategoriasRouteImport } from './routes/financas/categorias'
 import { Route as TarefasProjetosIdRouteImport } from './routes/tarefas/projetos.$id'
@@ -85,6 +86,11 @@ const ProjectsIdRoute = ProjectsIdRouteImport.update({
   path: '/projects/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FinancasLancamentosRoute = FinancasLancamentosRouteImport.update({
+  id: '/financas/lancamentos',
+  path: '/financas/lancamentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FinancasContasRoute = FinancasContasRouteImport.update({
   id: '/financas/contas',
   path: '/financas/contas',
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/upcoming': typeof UpcomingRoute
   '/financas/categorias': typeof FinancasCategoriasRoute
   '/financas/contas': typeof FinancasContasRoute
+  '/financas/lancamentos': typeof FinancasLancamentosRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/tarefas/proximos': typeof TarefasProximosRoute
   '/tarefas/todas': typeof TarefasTodasRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByTo {
   '/upcoming': typeof UpcomingRoute
   '/financas/categorias': typeof FinancasCategoriasRoute
   '/financas/contas': typeof FinancasContasRoute
+  '/financas/lancamentos': typeof FinancasLancamentosRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/tarefas/proximos': typeof TarefasProximosRoute
   '/tarefas/todas': typeof TarefasTodasRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/upcoming': typeof UpcomingRoute
   '/financas/categorias': typeof FinancasCategoriasRoute
   '/financas/contas': typeof FinancasContasRoute
+  '/financas/lancamentos': typeof FinancasLancamentosRoute
   '/projects/$id': typeof ProjectsIdRoute
   '/tarefas/proximos': typeof TarefasProximosRoute
   '/tarefas/todas': typeof TarefasTodasRoute
@@ -165,6 +174,7 @@ export interface FileRouteTypes {
     | '/upcoming'
     | '/financas/categorias'
     | '/financas/contas'
+    | '/financas/lancamentos'
     | '/projects/$id'
     | '/tarefas/proximos'
     | '/tarefas/todas'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/upcoming'
     | '/financas/categorias'
     | '/financas/contas'
+    | '/financas/lancamentos'
     | '/projects/$id'
     | '/tarefas/proximos'
     | '/tarefas/todas'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/upcoming'
     | '/financas/categorias'
     | '/financas/contas'
+    | '/financas/lancamentos'
     | '/projects/$id'
     | '/tarefas/proximos'
     | '/tarefas/todas'
@@ -217,6 +229,7 @@ export interface RootRouteChildren {
   UpcomingRoute: typeof UpcomingRoute
   FinancasCategoriasRoute: typeof FinancasCategoriasRoute
   FinancasContasRoute: typeof FinancasContasRoute
+  FinancasLancamentosRoute: typeof FinancasLancamentosRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
   TarefasProximosRoute: typeof TarefasProximosRoute
   TarefasTodasRoute: typeof TarefasTodasRoute
@@ -311,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/financas/lancamentos': {
+      id: '/financas/lancamentos'
+      path: '/financas/lancamentos'
+      fullPath: '/financas/lancamentos'
+      preLoaderRoute: typeof FinancasLancamentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/financas/contas': {
       id: '/financas/contas'
       path: '/financas/contas'
@@ -345,6 +365,7 @@ const rootRouteChildren: RootRouteChildren = {
   UpcomingRoute: UpcomingRoute,
   FinancasCategoriasRoute: FinancasCategoriasRoute,
   FinancasContasRoute: FinancasContasRoute,
+  FinancasLancamentosRoute: FinancasLancamentosRoute,
   ProjectsIdRoute: ProjectsIdRoute,
   TarefasProximosRoute: TarefasProximosRoute,
   TarefasTodasRoute: TarefasTodasRoute,

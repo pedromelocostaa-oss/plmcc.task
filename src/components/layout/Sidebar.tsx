@@ -4,7 +4,7 @@ import {
   Home, ListChecks, Search, Bookmark, Plus, Download,
   Archive, ChevronDown, ChevronRight, RotateCcw, Sun, Moon,
   BarChart2, PanelLeftClose, PanelLeftOpen, FileText, ShoppingCart, CalendarDays,
-  Wallet, Landmark, Tag,
+  Wallet, Landmark, Tag, Receipt,
 } from "lucide-react";
 import { MiniCalendar } from "@/components/workspace/MiniCalendar";
 import {
@@ -185,6 +185,7 @@ export function Sidebar() {
           <NavLink to="/financas" tint={NAV_TINTS.financas} icon={<Wallet size={13} strokeWidth={2.25} />} label="Finanças" active={currentPath.startsWith("/financas")} collapsed={collapsed} />
           {!collapsed && currentPath.startsWith("/financas") && (
             <div style={{ paddingLeft: 20, display: "flex", flexDirection: "column", gap: 1 }}>
+              <NavLink to="/financas/lancamentos" tint={NAV_TINTS.financas} icon={<Receipt size={12} strokeWidth={2.25} />} label="Lançamentos" active={currentPath === "/financas/lancamentos"} collapsed={false} />
               <NavLink to="/financas/contas" tint={NAV_TINTS.financas} icon={<Landmark size={12} strokeWidth={2.25} />} label="Contas" active={currentPath === "/financas/contas"} collapsed={false} />
               <NavLink to="/financas/categorias" tint={NAV_TINTS.financas} icon={<Tag size={12} strokeWidth={2.25} />} label="Categorias" active={currentPath === "/financas/categorias"} collapsed={false} />
             </div>

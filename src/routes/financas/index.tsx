@@ -43,9 +43,10 @@ function FinancasDashboard() {
       </div>
 
       {/* Atalhos */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 28 }}>
-        <ShortcutCard to="/financas/contas" emoji="🏦" title="Contas" desc={`${contas.length} conta${contas.length !== 1 ? "s" : ""} ativa${contas.length !== 1 ? "s" : ""}`} />
-        <ShortcutCard to="/financas/categorias" emoji="🏷️" title="Categorias" desc={`${categorias.length} categoria${categorias.length !== 1 ? "s" : ""}`} />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 28 }}>
+        <ShortcutCard to="/financas/lancamentos" emoji="📋" title="Lançamentos" desc={`${resumo?.total ?? 0} este mês`} />
+        <ShortcutCard to="/financas/contas" emoji="🏦" title="Contas" desc={`${contas.length} ativa${contas.length !== 1 ? "s" : ""}`} />
+        <ShortcutCard to="/financas/categorias" emoji="🏷️" title="Categorias" desc={`${categorias.length} cadastrada${categorias.length !== 1 ? "s" : ""}`} />
       </div>
 
       {/* Contas rápidas */}
