@@ -179,8 +179,6 @@ export function Sidebar() {
           display: "flex", flexDirection: "column", gap: 1,
         }}>
           <NavLink to="/" tint={NAV_TINTS.home} icon={<Home size={13} strokeWidth={2.25} />} label="Hoje" active={currentPath === "/" || currentPath === "/tarefas"} collapsed={collapsed} />
-          <NavLink to="/tarefas/proximos" tint={NAV_TINTS.upcoming} icon={<CalendarDays size={13} strokeWidth={2.25} />} label="Próximos 7 dias" active={currentPath === "/tarefas/proximos"} collapsed={collapsed} />
-          <NavLink to="/tarefas/todas" tint={NAV_TINTS.tasks} icon={<ListChecks size={13} strokeWidth={2.25} />} label="Todas as tarefas" active={currentPath === "/tarefas/todas"} collapsed={collapsed} />
           <NavLink to="/dashboard" tint={NAV_TINTS.dash} icon={<BarChart2 size={13} strokeWidth={2.25} />} label="Dashboard" active={currentPath === "/dashboard"} collapsed={collapsed} />
           <NavLink to="/financas" tint={NAV_TINTS.financas} icon={<Wallet size={13} strokeWidth={2.25} />} label="Finanças" active={currentPath.startsWith("/financas")} collapsed={collapsed} />
           {!collapsed && currentPath.startsWith("/financas") && (
