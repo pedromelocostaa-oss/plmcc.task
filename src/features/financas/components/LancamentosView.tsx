@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2, Pencil, X, ChevronLeft, ChevronRight, Check, Search, ArrowDownRight, ArrowUpRight, ArrowLeftRight, Zap } from "lucide-react";
+import { Plus, Trash2, Pencil, X, ChevronLeft, ChevronRight, Check, Search, ArrowDownRight, ArrowUpRight, ArrowLeftRight, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   useLancamentos, useCreateLancamento, useUpdateLancamento, useDeleteLancamento,
-  useContas, useCategorias,
+  useContas, useCategorias, useCreateRecorrencia,
 } from "../lib/queries";
-import type { LancamentoTipo } from "../lib/types";
+import type { LancamentoTipo, RecorrenciaFrequencia } from "../lib/types";
 import { colors } from "@/lib/tokens";
 import { useAllTasks } from "@/lib/queries";
 
@@ -43,6 +43,7 @@ export function LancamentosView() {
   const createLanc = useCreateLancamento();
   const updateLanc = useUpdateLancamento();
   const deleteLanc = useDeleteLancamento();
+  const createRec = useCreateRecorrencia();
 
   const [mes, setMes] = useState(getMesAtual);
   const [filtroConta, setFiltroConta] = useState("");
@@ -87,10 +88,13 @@ export function LancamentosView() {
   const [pago, setPago] = useState(true);
   const [observacao, setObservacao] = useState("");
   const [tarefaId, setTarefaId] = useState("");
+  const [recorrente, setRecorrente] = useState(false);
+  const [frequencia, setFrequencia] = useState<RecorrenciaFrequencia>("mensal");
 
   function resetForm() {
     setDescricao(""); setValor(""); setTipo("despesa"); setData(today());
     setContaId(""); setCategoriaId(""); setPago(true); setObservacao(""); setTarefaId("");
+    setRecorrente(false); setFrequencia("mensal");
     setShowForm(false); setShowMore(false); setEditingId(null);
   }
 
@@ -134,7 +138,15 @@ export function LancamentosView() {
           descricao: descricao.trim(), valor: Number(valor), tipo, data, conta_id: contaId, categoria_id: categoriaId || null, pago, observacao: observacao || null,
           data_pagamento: pago ? data : null, conta_destino_id: null, fatura_id: null, parcela_atual: null, parcela_total: null, compra_pai_id: null, recorrencia_id: null, tarefa_id: tarefaId || null,
         });
-        toast.success("Lançamento criado");
+        if (recorrente && tipo !== "transferencia") {
+          await createRec.mutateAsync({
+            descricao: descricao.trim(), valor: Number(valor),
+            tipo: tipo as "receita" | "despesa", frequencia,
+            conta_id: contaId, categoria_id: categoriaId || undefined,
+            data_inicio: data, gerar_como_pago: pago,
+          });
+        }
+        toast.success(recorrente ? "Lançamento + recorrência criados" : "Lançamento criado");
       }
       resetForm();
     } catch { toast.error("Erro ao salvar lançamento"); }
@@ -310,6 +322,37 @@ export function LancamentosView() {
                 {pago ? "Pago" : "A pagar"}
               </button>
             </div>
+
+            {/* Recorrência toggle */}
+            {!editingId && tipo !== "transferencia" && (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button type="button" onClick={() => setRecorrente(!recorrente)} style={{
+                  display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
+                  borderRadius: 10, border: "none", cursor: "pointer",
+                  background: recorrente ? "#5856D618" : "var(--hq-inlay-bg, var(--hq-bg))",
+                  color: recorrente ? "#5856D6" : colors.textSecondary,
+                  fontWeight: 600, fontSize: 13, transition: "all 0.15s",
+                }}>
+                  <RefreshCw size={14} />
+                  Recorrente
+                </button>
+                {recorrente && (
+                  <select value={frequencia} onChange={(e) => setFrequencia(e.target.value as RecorrenciaFrequencia)} style={{
+                    ...inputStyle, width: "auto", flex: 1,
+                    borderColor: "#5856D640",
+                  }}>
+                    <option value="diaria">Diária</option>
+                    <option value="semanal">Semanal</option>
+                    <option value="quinzenal">Quinzenal</option>
+                    <option value="mensal">Mensal</option>
+                    <option value="bimestral">Bimestral</option>
+                    <option value="trimestral">Trimestral</option>
+                    <option value="semestral">Semestral</option>
+                    <option value="anual">Anual</option>
+                  </select>
+                )}
+              </div>
+            )}
 
             {/* More fields toggle */}
             {!showMore && (
