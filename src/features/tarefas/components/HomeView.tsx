@@ -4,7 +4,7 @@ import { useLongPress } from "@/hooks/use-long-press";
 import { SwipeableCard } from "@/features/tarefas/components/SwipeableCard";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { haptics } from "@/lib/haptics";
-import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2, Pencil, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, ChevronDown, ChevronUp, ArrowRight, Calendar, Tag, AlignLeft, Maximize2, Minimize2, Pencil, ChevronsLeft, ChevronsRight, ExternalLink } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { showUndoToast } from "@/components/ui/undo-toast";
@@ -326,7 +326,10 @@ function KanbanCard({
     .filter((c) => c.status !== task.status)
     .map((c) => ({ ...c }));
 
-  const hasDetails = !!(task.description || subtasks.length > 0 || tags.length > 0 || task.due_date);
+  const hasDetails = !!(task.description || subtasks.length > 0 || tags.length > 0);
+
+  const isDone = task.status === "done";
+  const subProgress = subtasks.length ? (doneSubs / subtasks.length) * 100 : 0;
 
   return (
     <div
@@ -342,139 +345,199 @@ function KanbanCard({
       {...(isMobileProp && onOpenDetail ? longPressHandlers : {})}
       style={{
         position: "relative",
-        background: expanded
-          ? colors.surfaceRaised
-          : p.cardBg,          /* tint de prioridade — resolve via CSS var (dark/light) */
+        background: expanded ? colors.surfaceRaised : p.cardBg,
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
         borderTop:    `1px solid ${colors.cardBorder}`,
         borderRight:  `1px solid ${colors.cardBorder}`,
         borderBottom: `1px solid ${colors.cardBorder}`,
-        borderLeft:   `${p.borderPx}px solid ${p.color}`,  /* borda esquerda colorida por prioridade */
+        borderLeft:   `${p.borderPx}px solid ${p.color}`,
         borderRadius: radius.md,
         overflow: "hidden",
         boxShadow: expanded
           ? `0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px ${p.color}28`
-          : p.shadow,
+          : cardHovered ? `0 4px 16px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.12)` : p.shadow,
         marginBottom: 8,
-        transition: `background 0.2s ${spring.gentle}, border-color 0.2s ${spring.gentle}, box-shadow 0.2s ${spring.gentle}, opacity 0.15s`,
+        transition: `background 0.2s ${spring.gentle}, border-color 0.2s ${spring.gentle}, box-shadow 0.2s ${spring.gentle}, opacity 0.15s, transform 0.15s`,
         cursor: "grab",
         opacity: isDragging ? 0.4 : 1,
-        transform: isDragging ? "scale(0.97)" : "none",
+        transform: isDragging ? "scale(0.97)" : cardHovered ? "translateY(-1px)" : "none",
       }}
-      onClick={() => hasDetails && setExpanded((v) => !v)}
     >
-      {/* Quick complete button */}
-      <button
-        onClick={(e) => { e.stopPropagation(); haptics.success(); onMove(task.status === "done" ? "backlog" : "done"); }}
-        style={{
-          position: "absolute", top: 8, right: 8,
-          width: 20, height: 20, borderRadius: "50%",
-          border: `1.5px solid ${task.status === "done" ? "var(--hq-success)" : "var(--hq-border)"}`,
-          background: task.status === "done" ? "var(--hq-success)" : "transparent",
-          cursor: "pointer", padding: 0,
-          display: "grid", placeItems: "center",
-          opacity: cardHovered || task.status === "done" ? 1 : 0,
-          transition: "opacity 120ms",
-          zIndex: 2,
-        }}
-      >
-        {task.status === "done" && <Check size={11} color="#fff" strokeWidth={3} />}
-      </button>
-
-      {/* Card body */}
-      <div style={{ padding: "10px 12px" }}>
-        {/* Project + priority row */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-          {project && (
-            <>
-              <span style={{ width: 7, height: 7, borderRadius: 4, background: project.color, flexShrink: 0, boxShadow: `0 0 5px ${project.color}80` }} />
-              <span style={{ fontSize: 11, color: colors.textSecondary, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {project.name}
-              </span>
-            </>
+      {/* ── Tags cover strip (Trello-style colored labels at very top) ── */}
+      {tags.length > 0 && (
+        <div style={{ display: "flex", gap: 3, padding: "6px 12px 0", flexWrap: "wrap" }}>
+          {tags.slice(0, 4).map((t) => {
+            const tc = tagColor(t.tag);
+            return (
+              <span key={t.id} style={{
+                fontSize: 9.5, padding: "1px 7px", borderRadius: 4,
+                background: `${tc}30`, color: tc, fontWeight: 600,
+              }}>{t.tag}</span>
+            );
+          })}
+          {tags.length > 4 && (
+            <span style={{ fontSize: 9, color: colors.textMuted, padding: "1px 4px" }}>+{tags.length - 4}</span>
           )}
-          <span style={{
-            fontSize: 9, fontWeight: 700, color: p.color,
-            background: `${p.color}15`,
-            padding: "1px 5px", borderRadius: 4,
-            flexShrink: 0, letterSpacing: "0.04em",
-          }}>{p.label}</span>
-          {onOpenDetail && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onOpenDetail(); }}
-              title="Editar tarefa"
-              aria-label="Editar tarefa"
-              style={{
-                background: cardHovered ? `${colors.accent}1A` : "var(--hq-inlay-bg)",
-                border: `1px solid ${cardHovered ? `${colors.accent}55` : "var(--hq-border)"}`,
-                borderRadius: 5, color: cardHovered ? colors.accent : colors.textSecondary,
-                cursor: "pointer",
-                padding: "3px 7px", display: "inline-flex", alignItems: "center", gap: 4,
-                fontSize: 10, fontWeight: 600,
-                flexShrink: 0,
-                opacity: cardHovered || isMobileProp ? 1 : 0.55,
-                transition: "all 120ms",
-              }}
-            >
-              <Pencil size={10} />
-              Editar
-            </button>
-          )}
-          <span style={{ flex: 1 }} />
-          <span style={{ width: 24 }} />{/* space for quick-complete button */}
         </div>
+      )}
 
+      {/* ── Card body ── */}
+      <div style={{ padding: tags.length > 0 ? "6px 12px 10px" : "10px 12px" }}>
         {/* Title */}
         <div style={{
-          fontSize: 13, fontWeight: 500, lineHeight: 1.4,
-          color: task.status === "done" ? colors.textMuted : colors.text,
-          textDecoration: task.status === "done" ? "line-through" : "none",
-          marginBottom: 6,
+          fontSize: 13.5, fontWeight: 600, lineHeight: 1.45,
+          color: isDone ? colors.textMuted : colors.text,
+          textDecoration: isDone ? "line-through" : "none",
+          marginBottom: 8,
+          paddingRight: 28,
         }}>
           {task.title}
         </div>
 
-        {/* Footer: date + tags + subtasks + expand hint */}
+        {/* Metadata row */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          {task.due_date && (
-            <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 10, color: colors.textMuted }}>
-              <Calendar size={9} />
-              {new Date(task.due_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+          {/* Project badge */}
+          {project && (
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              fontSize: 10.5, color: colors.textSecondary,
+              background: `${project.color}18`,
+              padding: "2px 7px", borderRadius: 4,
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: 3, background: project.color, flexShrink: 0 }} />
+              {project.name}
             </span>
           )}
+
+          {/* Priority badge */}
+          <span style={{
+            fontSize: 9.5, fontWeight: 700, color: p.color,
+            background: `${p.color}18`,
+            padding: "2px 6px", borderRadius: 4,
+            letterSpacing: "0.04em",
+          }}>{p.label}</span>
+
+          {/* Due date */}
+          {task.due_date && (() => {
+            const dueDate = new Date(task.due_date + "T12:00:00");
+            const today = new Date();
+            today.setHours(12, 0, 0, 0);
+            const isOverdue = dueDate < today && !isDone;
+            const isToday = toIso(dueDate) === toIso(today);
+            return (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 3,
+                fontSize: 10.5, fontWeight: 500,
+                color: isOverdue ? "#FF453A" : isToday ? colors.warning : colors.textMuted,
+                background: isOverdue ? "rgba(255,69,58,0.1)" : isToday ? "rgba(255,159,10,0.1)" : "transparent",
+                padding: isOverdue || isToday ? "2px 6px" : "0",
+                borderRadius: 4,
+              }}>
+                <Calendar size={10} />
+                {isToday ? "Hoje" : dueDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+              </span>
+            );
+          })()}
+
+          {/* Subtask progress */}
           {subtasks.length > 0 && (
             <span style={{
-              display: "flex", alignItems: "center", gap: 3,
-              fontSize: 10, color: doneSubs === subtasks.length ? colors.success : colors.textMuted,
+              display: "inline-flex", alignItems: "center", gap: 4,
+              fontSize: 10.5, fontWeight: 500,
+              color: doneSubs === subtasks.length ? colors.success : colors.textMuted,
             }}>
-              <Check size={9} />
+              <Check size={10} />
               {doneSubs}/{subtasks.length}
             </span>
           )}
+
+          {/* Description indicator */}
           {task.description && (
-            <span style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 10, color: colors.textMuted }}>
-              <AlignLeft size={9} />
+            <span style={{ display: "inline-flex", alignItems: "center", color: colors.textMuted }}>
+              <AlignLeft size={10} />
             </span>
           )}
-          {tags.slice(0, 2).map((t) => {
-            const tc = tagColor(t.tag);
-            return (
-              <span key={t.id} style={{
-                fontSize: 9, padding: "1px 5px", borderRadius: "99px",
-                background: `${tc}22`, color: tc,
-              }}>{t.tag}</span>
-            );
-          })}
+
+          <span style={{ flex: 1 }} />
+
+          {/* Expand/collapse chevron */}
           {hasDetails && (
-            <span style={{ marginLeft: "auto", color: expanded ? p.color : colors.textMuted, transition: `color 0.2s` }}>
-              {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            </span>
+            <button
+              onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+              title={expanded ? "Recolher" : "Ver detalhes"}
+              style={{
+                background: "transparent", border: "none",
+                color: expanded ? p.color : colors.textMuted,
+                cursor: "pointer", padding: 2, display: "flex", alignItems: "center",
+                transition: "color 0.15s",
+              }}
+            >
+              {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+            </button>
           )}
         </div>
+
+        {/* Subtask progress bar (always visible when subtasks exist) */}
+        {subtasks.length > 0 && (
+          <div style={{
+            height: 3, borderRadius: 2,
+            background: "rgba(84,84,88,0.2)",
+            marginTop: 8, overflow: "hidden",
+          }}>
+            <div style={{
+              height: "100%",
+              width: `${subProgress}%`,
+              background: doneSubs === subtasks.length ? colors.success : colors.accent,
+              borderRadius: 2,
+              transition: "width 0.3s ease",
+            }} />
+          </div>
+        )}
       </div>
 
-      {/* ── Expanded detail panel ─────────────────────────────────── */}
+      {/* ── Quick complete button (top-right) ── */}
+      <button
+        onClick={(e) => { e.stopPropagation(); haptics.success(); onMove(isDone ? "backlog" : "done"); }}
+        style={{
+          position: "absolute", top: 10, right: 10,
+          width: 20, height: 20, borderRadius: "50%",
+          border: `1.5px solid ${isDone ? "var(--hq-success)" : "var(--hq-border)"}`,
+          background: isDone ? "var(--hq-success)" : "transparent",
+          cursor: "pointer", padding: 0,
+          display: "grid", placeItems: "center",
+          opacity: cardHovered || isDone ? 1 : 0,
+          transition: "opacity 120ms",
+          zIndex: 2,
+        }}
+      >
+        {isDone && <Check size={11} color="#fff" strokeWidth={3} />}
+      </button>
+
+      {/* ── Open detail button (appears on hover, below complete) ── */}
+      {onOpenDetail && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onOpenDetail(); }}
+          title="Abrir tarefa"
+          aria-label="Abrir tarefa completa"
+          style={{
+            position: "absolute", top: 34, right: 10,
+            width: 20, height: 20, borderRadius: 5,
+            background: cardHovered ? `${colors.accent}1A` : "transparent",
+            border: `1px solid ${cardHovered ? `${colors.accent}50` : "transparent"}`,
+            color: cardHovered ? colors.accent : "transparent",
+            cursor: "pointer", padding: 0,
+            display: "grid", placeItems: "center",
+            opacity: cardHovered || isMobileProp ? 1 : 0,
+            transition: "all 120ms",
+            zIndex: 2,
+          }}
+        >
+          <Pencil size={10} />
+        </button>
+      )}
+
+      {/* ── Expanded detail panel ── */}
       {expanded && (
         <div
           onClick={(e) => e.stopPropagation()}
@@ -494,14 +557,9 @@ function KanbanCard({
           {task.description && (
             <div style={{
               padding: "12px 14px",
-              borderBottom: subtasks.length > 0 || tags.length > 0
-                ? "1px solid rgba(84,84,88,0.18)"
-                : "none",
+              borderBottom: subtasks.length > 0 ? "1px solid rgba(84,84,88,0.18)" : "none",
             }}>
-              <div style={{
-                display: "flex", alignItems: "center", gap: 6,
-                marginBottom: 6,
-              }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                 <AlignLeft size={11} color={colors.textMuted} />
                 <span style={{ fontSize: 10, color: colors.textMuted, textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>
                   Descrição
@@ -519,12 +577,7 @@ function KanbanCard({
 
           {/* Subtasks */}
           {subtasks.length > 0 && (
-            <div style={{
-              padding: "12px 14px",
-              borderBottom: tags.length > 0
-                ? "1px solid rgba(84,84,88,0.18)"
-                : "none",
-            }}>
+            <div style={{ padding: "12px 14px" }}>
               <div style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 marginBottom: 8,
@@ -538,20 +591,6 @@ function KanbanCard({
                 <span style={{ fontSize: 10, color: doneSubs === subtasks.length ? colors.success : colors.textMuted, fontWeight: 600 }}>
                   {doneSubs}/{subtasks.length}
                 </span>
-              </div>
-              {/* Progress bar */}
-              <div style={{
-                height: 3, borderRadius: 2,
-                background: "rgba(84,84,88,0.25)",
-                marginBottom: 10, overflow: "hidden",
-              }}>
-                <div style={{
-                  height: "100%",
-                  width: `${subtasks.length ? (doneSubs / subtasks.length) * 100 : 0}%`,
-                  background: doneSubs === subtasks.length ? colors.success : colors.accent,
-                  borderRadius: 2,
-                  transition: "width 0.3s ease",
-                }} />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {subtasks.map((s) => (
@@ -578,36 +617,29 @@ function KanbanCard({
             </div>
           )}
 
-          {/* Tags */}
-          {tags.length > 0 && (
-            <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(84,84,88,0.18)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 7 }}>
-                <Tag size={11} color={colors.textMuted} />
-                <span style={{ fontSize: 10, color: colors.textMuted, textTransform: "uppercase", letterSpacing: "0.07em", fontWeight: 600 }}>
-                  Tags
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {tags.map((t) => {
-                  const tc = tagColor(t.tag);
-                  return (
-                    <span key={t.id} style={{
-                      fontSize: 11, padding: "3px 8px", borderRadius: "99px",
-                      background: `${tc}22`,
-                      border: `1px solid ${tc}40`,
-                      color: tc,
-                      display: "flex", alignItems: "center", gap: 4,
-                    }}>
-                      <Tag size={8} />{t.tag}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Move buttons */}
-          <div style={{ padding: "10px 14px", display: "flex", gap: 6 }}>
+          {/* Move buttons + open full detail */}
+          <div style={{ padding: "10px 14px", display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {onOpenDetail && (
+              <button
+                onClick={onOpenDetail}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                  padding: "7px 12px",
+                  background: `${colors.accent}15`,
+                  border: `1px solid ${colors.accent}35`,
+                  borderRadius: radius.sm,
+                  color: colors.accent,
+                  cursor: "pointer",
+                  fontSize: 11, fontWeight: 600,
+                  transition: `filter 0.15s`,
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.filter = "brightness(1.2)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.filter = ""; }}
+              >
+                <ExternalLink size={11} />
+                Abrir completo
+              </button>
+            )}
             {nextStatuses.map((col) => (
               <button
                 key={col.status}

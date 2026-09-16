@@ -21,14 +21,7 @@ export function WeeklyGoalBanner() {
     if (draft.trim()) saveGoal(draft);
   }
 
-  // ── Estado 1: Goal definido ──────────────────────────────────────────────────
-  if (hasGoal) {
-    return (
-      <GoalDisplay goal={goal} weekRange={weekRange} onEdit={() => { setDraft(goal); editGoal(); }} />
-    );
-  }
-
-  // ── Estado 2: Prompt (segunda-feira ou clicou "definir") ─────────────────────
+  // ── Estado 1: Prompt (segunda-feira sem goal, ou clicou "editar/definir") ────
   if (showPrompt) {
     return (
       <div style={{
@@ -115,6 +108,13 @@ export function WeeklyGoalBanner() {
           </button>
         </div>
       </div>
+    );
+  }
+
+  // ── Estado 2: Goal definido ──────────────────────────────────────────────────
+  if (hasGoal) {
+    return (
+      <GoalDisplay goal={goal} weekRange={weekRange} onEdit={() => { setDraft(goal); editGoal(); }} />
     );
   }
 

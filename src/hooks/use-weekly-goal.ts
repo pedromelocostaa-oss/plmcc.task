@@ -44,9 +44,8 @@ export function useWeeklyGoal() {
 
   const hasGoal = goal.trim().length > 0;
   const isMonday_ = isMonday();
-  // Exibe o prompt se: (a) segunda e sem objetivo, ou (b) o usuário clicar em "definir"
   const [forcePrompt, setForcePrompt] = useState(false);
-  const showPrompt = !hasGoal && (isMonday_ || forcePrompt);
+  const showPrompt = forcePrompt || (!hasGoal && isMonday_);
 
   function saveGoal(text: string) {
     const t = text.trim();
