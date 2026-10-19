@@ -11,6 +11,8 @@ const SERVER_INFO = {
   version: "1.0.0",
 };
 
+const SUPPORTED_PROTOCOLS = ["2024-11-05", "2025-03-26", "2025-06-18"];
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -73,7 +75,11 @@ async function handleMCP(request: Request, env: Env): Promise<Response> {
 
   const req = body as { jsonrpc: string; method: string; params?: Record<string, unknown>; id?: number | string | null };
 
+  // Notificacoes (sem id) nao recebem resposta — exigencia do JSON-RPC 2.0.
+  const isNotification = req.id === undefined || req.id === null;
+
   if (req.jsonrpc !== "2.0") {
+    if (isNotification) return new Response(null, { status: 202, headers: CORS_HEADERS });
     return json({
       jsonrpc: "2.0",
       error: { code: -32600, message: "Invalid Request" },
@@ -81,8 +87,33 @@ async function handleMCP(request: Request, env: Env): Promise<Response> {
     });
   }
 
-  const result = await dispatch(req.method, req.params ?? {}, env);
-  return json({ jsonrpc: "2.0", result, id: req.id ?? null });
+  if (isNotification) {
+    await dispatch(req.method, req.params ?? {}, env).catch(() => {});
+    return new Response(null, { status: 202, headers: CORS_HEADERS });
+  }
+
+  try {
+    const result = await dispatch(req.method, req.params ?? {}, env);
+    return json({ jsonrpc: "2.0", result, id: req.id });
+  } catch (e) {
+    const rpc = e as RpcError;
+    return json({
+      jsonrpc: "2.0",
+      error: {
+        code: rpc.code ?? -32603,
+        message: rpc.message ?? "Internal error",
+      },
+      id: req.id,
+    });
+  }
+}
+
+class RpcError extends Error {
+  code: number;
+  constructor(code: number, message: string) {
+    super(message);
+    this.code = code;
+  }
 }
 
 async function dispatch(
@@ -91,15 +122,16 @@ async function dispatch(
   env: Env
 ): Promise<unknown> {
   switch (method) {
-    case "initialize":
+    case "initialize": {
+      const asked = params.protocolVersion as string | undefined;
       return {
-        protocolVersion: "2024-11-05",
+        protocolVersion: SUPPORTED_PROTOCOLS.includes(asked ?? "")
+          ? asked
+          : "2024-11-05",
         capabilities: { tools: {} },
         serverInfo: SERVER_INFO,
       };
-
-    case "notifications/initialized":
-      return {};
+    }
 
     case "tools/list":
       return { tools: TOOLS };
@@ -114,8 +146,15 @@ async function dispatch(
     case "ping":
       return {};
 
+    case "resources/list":
+      return { resources: [] };
+
+    case "prompts/list":
+      return { prompts: [] };
+
     default:
-      return { error: { code: -32601, message: `Method not found: ${method}` } };
+      if (method.startsWith("notifications/")) return {};
+      throw new RpcError(-32601, `Method not found: ${method}`);
   }
 }
 
