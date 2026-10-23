@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BookmarksRouteImport } from './routes/bookmarks'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as FinancasRouteImport } from './routes/financas'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as PurchasesRouteImport } from './routes/purchases'
@@ -44,6 +45,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FinancasRoute = FinancasRouteImport.update({
+  id: '/financas',
+  path: '/financas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -70,34 +76,34 @@ const UpcomingRoute = UpcomingRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const FinancasIndexRoute = FinancasIndexRouteImport.update({
-  id: '/financas/',
-  path: '/financas/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => FinancasRoute,
 } as any)
 const FinancasCartoesRoute = FinancasCartoesRouteImport.update({
-  id: '/financas/cartoes',
-  path: '/financas/cartoes',
-  getParentRoute: () => rootRouteImport,
+  id: '/cartoes',
+  path: '/cartoes',
+  getParentRoute: () => FinancasRoute,
 } as any)
 const FinancasCategoriasRoute = FinancasCategoriasRouteImport.update({
-  id: '/financas/categorias',
-  path: '/financas/categorias',
-  getParentRoute: () => rootRouteImport,
+  id: '/categorias',
+  path: '/categorias',
+  getParentRoute: () => FinancasRoute,
 } as any)
 const FinancasContasRoute = FinancasContasRouteImport.update({
-  id: '/financas/contas',
-  path: '/financas/contas',
-  getParentRoute: () => rootRouteImport,
+  id: '/contas',
+  path: '/contas',
+  getParentRoute: () => FinancasRoute,
 } as any)
 const FinancasLancamentosRoute = FinancasLancamentosRouteImport.update({
-  id: '/financas/lancamentos',
-  path: '/financas/lancamentos',
-  getParentRoute: () => rootRouteImport,
+  id: '/lancamentos',
+  path: '/lancamentos',
+  getParentRoute: () => FinancasRoute,
 } as any)
 const FinancasRecorrenciasRoute = FinancasRecorrenciasRouteImport.update({
-  id: '/financas/recorrencias',
-  path: '/financas/recorrencias',
-  getParentRoute: () => rootRouteImport,
+  id: '/recorrencias',
+  path: '/recorrencias',
+  getParentRoute: () => FinancasRoute,
 } as any)
 const ProjectsIdRoute = ProjectsIdRouteImport.update({
   id: '/projects/$id',
@@ -129,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/dashboard': typeof DashboardRoute
+  '/financas': typeof FinancasRouteWithChildren
   '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
   '/purchases': typeof PurchasesRoute
@@ -172,6 +179,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/dashboard': typeof DashboardRoute
+  '/financas': typeof FinancasRouteWithChildren
   '/login': typeof LoginRoute
   '/notes': typeof NotesRoute
   '/purchases': typeof PurchasesRoute
@@ -195,6 +203,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bookmarks'
     | '/dashboard'
+    | '/financas'
     | '/login'
     | '/notes'
     | '/purchases'
@@ -237,6 +246,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bookmarks'
     | '/dashboard'
+    | '/financas'
     | '/login'
     | '/notes'
     | '/purchases'
@@ -259,20 +269,15 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BookmarksRoute: typeof BookmarksRoute
   DashboardRoute: typeof DashboardRoute
+  FinancasRoute: typeof FinancasRouteWithChildren
   LoginRoute: typeof LoginRoute
   NotesRoute: typeof NotesRoute
   PurchasesRoute: typeof PurchasesRoute
   TasksRoute: typeof TasksRoute
   UpcomingRoute: typeof UpcomingRoute
-  FinancasCartoesRoute: typeof FinancasCartoesRoute
-  FinancasCategoriasRoute: typeof FinancasCategoriasRoute
-  FinancasContasRoute: typeof FinancasContasRoute
-  FinancasLancamentosRoute: typeof FinancasLancamentosRoute
-  FinancasRecorrenciasRoute: typeof FinancasRecorrenciasRoute
   ProjectsIdRoute: typeof ProjectsIdRoute
   TarefasProximosRoute: typeof TarefasProximosRoute
   TarefasTodasRoute: typeof TarefasTodasRoute
-  FinancasIndexRoute: typeof FinancasIndexRoute
   TarefasIndexRoute: typeof TarefasIndexRoute
   TarefasProjetosIdRoute: typeof TarefasProjetosIdRoute
 }
@@ -298,6 +303,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/financas': {
+      id: '/financas'
+      path: '/financas'
+      fullPath: '/financas'
+      preLoaderRoute: typeof FinancasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -337,45 +349,45 @@ declare module '@tanstack/react-router' {
     }
     '/financas/': {
       id: '/financas/'
-      path: '/financas'
+      path: '/'
       fullPath: '/financas/'
       preLoaderRoute: typeof FinancasIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FinancasRoute
     }
     '/financas/cartoes': {
       id: '/financas/cartoes'
-      path: '/financas/cartoes'
+      path: '/cartoes'
       fullPath: '/financas/cartoes'
       preLoaderRoute: typeof FinancasCartoesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FinancasRoute
     }
     '/financas/categorias': {
       id: '/financas/categorias'
-      path: '/financas/categorias'
+      path: '/categorias'
       fullPath: '/financas/categorias'
       preLoaderRoute: typeof FinancasCategoriasRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FinancasRoute
     }
     '/financas/contas': {
       id: '/financas/contas'
-      path: '/financas/contas'
+      path: '/contas'
       fullPath: '/financas/contas'
       preLoaderRoute: typeof FinancasContasRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FinancasRoute
     }
     '/financas/lancamentos': {
       id: '/financas/lancamentos'
-      path: '/financas/lancamentos'
+      path: '/lancamentos'
       fullPath: '/financas/lancamentos'
       preLoaderRoute: typeof FinancasLancamentosRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FinancasRoute
     }
     '/financas/recorrencias': {
       id: '/financas/recorrencias'
-      path: '/financas/recorrencias'
+      path: '/recorrencias'
       fullPath: '/financas/recorrencias'
       preLoaderRoute: typeof FinancasRecorrenciasRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FinancasRoute
     }
     '/projects/$id': {
       id: '/projects/$id'
@@ -415,24 +427,41 @@ declare module '@tanstack/react-router' {
   }
 }
 
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  BookmarksRoute: BookmarksRoute,
-  DashboardRoute: DashboardRoute,
-  LoginRoute: LoginRoute,
-  NotesRoute: NotesRoute,
-  PurchasesRoute: PurchasesRoute,
-  TasksRoute: TasksRoute,
-  UpcomingRoute: UpcomingRoute,
+interface FinancasRouteChildren {
+  FinancasCartoesRoute: typeof FinancasCartoesRoute
+  FinancasCategoriasRoute: typeof FinancasCategoriasRoute
+  FinancasContasRoute: typeof FinancasContasRoute
+  FinancasLancamentosRoute: typeof FinancasLancamentosRoute
+  FinancasRecorrenciasRoute: typeof FinancasRecorrenciasRoute
+  FinancasIndexRoute: typeof FinancasIndexRoute
+}
+
+const FinancasRouteChildren: FinancasRouteChildren = {
   FinancasCartoesRoute: FinancasCartoesRoute,
   FinancasCategoriasRoute: FinancasCategoriasRoute,
   FinancasContasRoute: FinancasContasRoute,
   FinancasLancamentosRoute: FinancasLancamentosRoute,
   FinancasRecorrenciasRoute: FinancasRecorrenciasRoute,
+  FinancasIndexRoute: FinancasIndexRoute,
+}
+
+const FinancasRouteWithChildren = FinancasRoute._addFileChildren(
+  FinancasRouteChildren,
+)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  BookmarksRoute: BookmarksRoute,
+  DashboardRoute: DashboardRoute,
+  FinancasRoute: FinancasRouteWithChildren,
+  LoginRoute: LoginRoute,
+  NotesRoute: NotesRoute,
+  PurchasesRoute: PurchasesRoute,
+  TasksRoute: TasksRoute,
+  UpcomingRoute: UpcomingRoute,
   ProjectsIdRoute: ProjectsIdRoute,
   TarefasProximosRoute: TarefasProximosRoute,
   TarefasTodasRoute: TarefasTodasRoute,
-  FinancasIndexRoute: FinancasIndexRoute,
   TarefasIndexRoute: TarefasIndexRoute,
   TarefasProjetosIdRoute: TarefasProjetosIdRoute,
 }
