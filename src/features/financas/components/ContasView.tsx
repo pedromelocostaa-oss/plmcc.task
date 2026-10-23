@@ -20,7 +20,9 @@ function fmt(v: number) {
 }
 
 export function ContasView() {
-  const { data: contas = [], isLoading } = useContas();
+  const { data: todasContas = [], isLoading } = useContas();
+  // Cartões de crédito vivem na aba Cartões; aqui ficam só as contas (bancos e caixa).
+  const contas = todasContas.filter((c) => c.tipo !== "cartao_credito");
   const createConta = useCreateConta();
   const updateConta = useUpdateConta();
   const deleteConta = useDeleteConta();
@@ -116,7 +118,7 @@ export function ContasView() {
               onChange={(e) => setNome(e.target.value)} style={inputStyle} />
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <select value={tipo} onChange={(e) => setTipo(e.target.value as ContaTipo)} style={{ ...inputStyle, flex: 1 }}>
-                {(Object.keys(TIPO_LABELS) as ContaTipo[]).map((t) => (
+                {(Object.keys(TIPO_LABELS) as ContaTipo[]).filter((t) => t !== "cartao_credito").map((t) => (
                   <option key={t} value={t}>{TIPO_LABELS[t]}</option>
                 ))}
               </select>
