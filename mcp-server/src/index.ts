@@ -3,7 +3,9 @@ import { TOOLS, executeTool } from "./tools";
 
 interface Env {
   SUPABASE_URL: string;
-  SUPABASE_ANON_KEY: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
+  MCP_TOKEN: string;
+  OWNER_USER_ID: string;
 }
 
 const SERVER_INFO = {
@@ -13,22 +15,24 @@ const SERVER_INFO = {
 
 const SUPPORTED_PROTOCOLS = ["2024-11-05", "2025-03-26", "2025-06-18"];
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const CORS_HEADERS: Record<string, string> = {};
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
-    }
-
     const url = new URL(request.url);
 
     if (url.pathname === "/" || url.pathname === "/health") {
-      return json({ status: "ok", server: SERVER_INFO });
+      return json({ status: "ok" });
+    }
+
+    if (!env.MCP_TOKEN || !env.SUPABASE_SERVICE_ROLE_KEY || !env.OWNER_USER_ID) {
+      return json({ error: "server_not_configured" }, 503);
+    }
+    if (!(await isAuthorized(request, env.MCP_TOKEN))) {
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", "WWW-Authenticate": "Bearer" },
+      });
     }
 
     if (url.pathname === "/sse" && request.method === "GET") {
@@ -42,6 +46,22 @@ export default {
     return json({ error: "Not found" }, 404);
   },
 };
+
+async function isAuthorized(request: Request, expected: string): Promise<boolean> {
+  const header = request.headers.get("authorization") ?? "";
+  const given = header.startsWith("Bearer ") ? header.slice(7) : (request.headers.get("x-api-key") ?? "");
+  const enc = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(given)),
+    crypto.subtle.digest("SHA-256", enc.encode(expected)),
+  ]);
+  // Compara os dois digests SHA-256 (32 bytes) sem sair no primeiro byte diferente.
+  const x = new Uint8Array(a);
+  const y = new Uint8Array(b);
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < Math.min(x.length, y.length); i++) diff |= x[i] ^ y[i];
+  return diff === 0;
+}
 
 function handleSSE(url: URL): Response {
   const baseUrl = `${url.protocol}//${url.host}`;
@@ -140,7 +160,7 @@ async function dispatch(
       const toolName = params.name as string;
       const toolArgs = (params.arguments ?? {}) as Record<string, unknown>;
       const db = getDb(env);
-      return executeTool(db, toolName, toolArgs);
+      return executeTool(db, env.OWNER_USER_ID, toolName, toolArgs);
     }
 
     case "ping":

@@ -34,3 +34,7 @@ dist-ssr
 # Environment variables
 .env
 .env.*
+
+# Exemplos versionados (sem segredos)
+!.env.example
+!.env.local.example

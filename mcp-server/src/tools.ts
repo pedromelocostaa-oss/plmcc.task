@@ -161,11 +161,13 @@ export const TOOLS: Tool[] = [
 
 async function resolveProjectId(
   db: SupabaseClient,
+  owner: string,
   name: string
 ): Promise<string | null> {
   const { data } = await db
     .from("projects")
     .select("id, name")
+    .eq("user_id", owner)
     .ilike("name", `%${name}%`)
     .limit(1)
     .single();
@@ -174,6 +176,7 @@ async function resolveProjectId(
 
 export async function executeTool(
   db: SupabaseClient,
+  owner: string,
   name: string,
   args: Record<string, unknown>
 ): Promise<{ content: { type: string; text: string }[] }> {
@@ -182,6 +185,7 @@ export async function executeTool(
       const { data, error } = await db
         .from("projects")
         .select("id, name, color, archived, created_at")
+        .eq("user_id", owner)
         .eq("archived", false)
         .order("name");
       if (error) return err(error.message);
@@ -195,10 +199,11 @@ export async function executeTool(
         .order("created_at", { ascending: false })
         .limit((args.limit as number) || 50);
 
+      q = q.eq("user_id", owner);
       if (args.status) q = q.eq("status", args.status);
       if (args.priority) q = q.eq("priority", args.priority);
       if (args.project_name) {
-        const pid = await resolveProjectId(db, args.project_name as string);
+        const pid = await resolveProjectId(db, owner, args.project_name as string);
         if (!pid) return err(`Projeto "${args.project_name}" nao encontrado`);
         q = q.eq("project_id", pid);
       }
@@ -209,11 +214,12 @@ export async function executeTool(
     }
 
     case "create_task": {
-      const pid = await resolveProjectId(db, args.project_name as string);
+      const pid = await resolveProjectId(db, owner, args.project_name as string);
       if (!pid) return err(`Projeto "${args.project_name}" nao encontrado`);
       const { data, error } = await db
         .from("tasks")
         .insert({
+          user_id: owner,
           project_id: pid,
           title: args.title,
           description: (args.description as string) || "",
@@ -229,7 +235,7 @@ export async function executeTool(
     }
 
     case "create_tasks_batch": {
-      const pid = await resolveProjectId(db, args.project_name as string);
+      const pid = await resolveProjectId(db, owner, args.project_name as string);
       if (!pid)
         return err(`Projeto "${args.project_name}" nao encontrado`);
       const tasks = args.tasks as {
@@ -240,6 +246,7 @@ export async function executeTool(
         due_date?: string;
       }[];
       const rows = tasks.map((t) => ({
+        user_id: owner,
         project_id: pid,
         title: t.title,
         description: t.description || "",
@@ -272,6 +279,7 @@ export async function executeTool(
         .from("tasks")
         .update(update)
         .eq("id", args.task_id)
+        .eq("user_id", owner)
         .select("id, title, status, priority")
         .single();
       if (error) return err(error.message);
@@ -279,7 +287,7 @@ export async function executeTool(
     }
 
     case "delete_task": {
-      const { error } = await db.from("tasks").delete().eq("id", args.task_id);
+      const { error } = await db.from("tasks").delete().eq("id", args.task_id).eq("user_id", owner);
       if (error) return err(error.message);
       return ok({ message: "Tarefa removida" });
     }
@@ -288,6 +296,7 @@ export async function executeTool(
       const { data, error } = await db
         .from("tasks")
         .select("id, title, status, priority, due_date, project:projects(name)")
+        .eq("user_id", owner)
         .ilike("title", `%${args.query}%`)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -298,14 +307,15 @@ export async function executeTool(
     case "get_stats": {
       const { data: tasks } = await db
         .from("tasks")
-        .select("status, priority, project:projects(name)");
+        .select("status, priority, project:projects(name)")
+        .eq("user_id", owner);
       if (!tasks) return ok({ total: 0 });
 
       const byStatus: Record<string, number> = {};
       const byPriority: Record<string, number> = {};
       const byProject: Record<string, number> = {};
 
-      for (const t of tasks as { status: string; priority: number; project: { name: string } | null }[]) {
+      for (const t of tasks as unknown as { status: string; priority: number; project: { name: string } | null }[]) {
         byStatus[t.status] = (byStatus[t.status] || 0) + 1;
         byPriority[`P${t.priority}`] = (byPriority[`P${t.priority}`] || 0) + 1;
         const pn = t.project?.name || "Sem projeto";

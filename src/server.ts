@@ -3,6 +3,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { handleCalendarRequest } from "./lib/calendar-api";
+import { authenticate, withSessionCookies } from "./lib/session.server";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -72,7 +73,15 @@ export default {
     // ── /api/calendar — ICS proxy (no createServerFn, no CORS issues) ────────
     const url = new URL(request.url);
     if (url.pathname === "/api/calendar") {
-      return handleCalendarRequest(request, env as Record<string, string>);
+      const auth = await authenticate(request);
+      if (!auth.user) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401,
+          headers: { "content-type": "application/json", "cache-control": "no-store" },
+        });
+      }
+      const res = await handleCalendarRequest(request, env as Record<string, string>);
+      return withSessionCookies(res, auth.cookies, auth.headers);
     }
 
     try {

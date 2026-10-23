@@ -5,7 +5,6 @@
   "compatibility_date": "2025-04-01",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "SUPABASE_URL": "https://yfkaihqrkxrikaqtmpqu.supabase.co",
-    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlma2FpaHFya3hyaWthcXRtcHF1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4Nzg4MjksImV4cCI6MjEwNDQ1NDgyOX0.CXlNJAFsAnQ6Md3-BBePN3nV7VtfRpCLxme31uMjRRk"
+    "SUPABASE_URL": "https://yfkaihqrkxrikaqtmpqu.supabase.co"
   }
 }

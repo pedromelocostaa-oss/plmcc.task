@@ -4,6 +4,8 @@ import {
   createRootRouteWithContext,
   HeadContent,
   Scripts,
+  redirect,
+  useRouterState,
 } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
 import { Toaster } from "sonner";
@@ -18,6 +20,8 @@ import { useOnline } from "@/hooks/use-online";
 import { InstallPrompt } from "@/components/ui/install-prompt";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useGlobalHotkeys } from "@/hooks/use-hotkeys";
+import { getSessionFn } from "@/lib/auth.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 // ─── Search context ───────────────────────────────────────────────────────────
 
@@ -85,6 +89,16 @@ function QuickAddProvider({ children }: { children: ReactNode }) {
 // ─── Route ───────────────────────────────────────────────────────────────────
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  // Guard: sem sessao -> /login. No SSR o servidor valida o cookie de verdade; na navegacao
+  // pelo cliente basta a sessao local (o RLS no banco e quem barra dados de verdade).
+  beforeLoad: async ({ location }) => {
+    if (location.pathname === "/login") return;
+    const user =
+      typeof window === "undefined"
+        ? await getSessionFn()
+        : (await supabase.auth.getSession()).data.session?.user ?? null;
+    if (!user) throw redirect({ to: "/login", search: { redirect: location.href } });
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -285,6 +299,16 @@ function AppShell() {
   const isMobile = useIsMobile();
   useThemeColor();
   const { updateAvailable, applyUpdate } = useServiceWorkerUpdate();
+  const pathname = useRouterState({ select: (st) => st.location.pathname });
+
+  if (pathname === "/login") {
+    return (
+      <>
+        <Outlet />
+        <Toaster theme={theme === "light" ? "light" : "dark"} position="top-center" />
+      </>
+    );
+  }
 
   return (
     <>

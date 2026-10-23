@@ -1,8 +1,9 @@
 ﻿import { useState } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, ListChecks, BarChart2, ShoppingCart, Plus, FileText, Bookmark, Search, MoreHorizontal, X, Wallet } from "lucide-react";
+import { Home, ListChecks, BarChart2, ShoppingCart, Plus, FileText, Bookmark, Search, MoreHorizontal, X, Wallet, LogOut } from "lucide-react";
 import { useQuickAdd, useSearch } from "@/routes/__root";
 import { colors, spring, radius } from "@/lib/tokens";
+import { signOutEverywhere } from "@/lib/auth-client";
 
 type TabDef = { to: string; icon: React.ComponentType<{ size: number; strokeWidth: number }>; label: string };
 
@@ -134,6 +135,17 @@ export function MobileNav() {
                 </Link>
               );
             })}
+            <button
+              onClick={() => { setMoreOpen(false); signOutEverywhere(); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "10px 14px",
+                background: "none", border: "none", borderRadius: radius.sm,
+                color: colors.textSecondary, cursor: "pointer", fontSize: 14, textAlign: "left",
+              }}
+            >
+              <LogOut size={18} strokeWidth={1.75} />
+              Sair
+            </button>
           </div>
         </div>
       )}

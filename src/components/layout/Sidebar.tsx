@@ -4,7 +4,7 @@ import {
   Home, ListChecks, Search, Bookmark, Plus, Download,
   Archive, ChevronDown, ChevronRight, RotateCcw, Sun, Moon,
   BarChart2, PanelLeftClose, PanelLeftOpen, FileText, ShoppingCart, CalendarDays,
-  Wallet, Landmark, Tag, Receipt, CreditCard, RefreshCw,
+  Wallet, Landmark, Tag, Receipt, CreditCard, RefreshCw, LogOut,
 } from "lucide-react";
 import { MiniCalendar } from "@/components/workspace/MiniCalendar";
 import {
@@ -18,6 +18,7 @@ import { colors, spring, radius, NAV_TINTS } from "@/lib/tokens";
 import { SquircleIcon, ProjectSquircle } from "@/components/ui/squircle-icon";
 import { LogoWordmark, LogoMark } from "@/components/ui/Logo";
 import { useTheme } from "@/hooks/use-theme";
+import { signOutEverywhere } from "@/lib/auth-client";
 
 const COLLAPSED_W = 64;
 const EXPANDED_W = 248;
@@ -382,6 +383,9 @@ export function Sidebar() {
                 {theme === "light" ? <Moon size={13} /> : <Sun size={13} />}
                 <span>{theme === "light" ? "Modo escuro" : "Modo claro"}</span>
               </button>
+              <button onClick={signOutEverywhere} style={{ ...navBtnStyle(false, false), color: colors.textSecondary, fontSize: 12 }}>
+                <LogOut size={13} /><span>Sair</span>
+              </button>
             </>
           )}
 
@@ -392,6 +396,16 @@ export function Sidebar() {
               padding: "8px 0", display: "flex", justifyContent: "center", alignItems: "center",
             }}>
               {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
+            </button>
+          )}
+
+          {collapsed && (
+            <button onClick={signOutEverywhere} title="Sair" style={{
+              background: "transparent", border: "none",
+              color: colors.textMuted, cursor: "pointer",
+              padding: "8px 0", display: "flex", justifyContent: "center", alignItems: "center",
+            }}>
+              <LogOut size={14} />
             </button>
           )}
         </div>
