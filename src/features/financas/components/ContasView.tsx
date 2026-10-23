@@ -1,7 +1,10 @@
-import { useState } from "react";
-import { Plus, Trash2, Pencil, X, Landmark, User, Briefcase } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Plus, Trash2, Pencil, X, Check, Eye, EyeOff, Landmark } from "lucide-react";
 import { toast } from "sonner";
-import { useContas, useCreateConta, useUpdateConta, useDeleteConta } from "../lib/queries";
+import { useContas, useCreateConta, useUpdateConta, useDeleteConta, useDashboardData } from "../lib/queries";
+import { adjustedSaldoInicial, centsToReais, computeSaldoConta, parseMoneyInput, toCents } from "../lib/dashboard";
+import { formatMoney } from "../lib/privacy";
+import { useHideValues } from "../lib/use-hide-values";
 import type { Conta, ContaTipo } from "../lib/types";
 import { colors, radius } from "@/lib/tokens";
 
@@ -15,10 +18,6 @@ const TIPO_LABELS: Record<ContaTipo, string> = {
 
 const CONTA_COLORS = ["#007AFF", "#34C759", "#FF9500", "#FF3B30", "#AF52DE", "#5856D6", "#FF6B35", "#5AC8FA"];
 
-function fmt(v: number) {
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
 export function ContasView() {
   const { data: todasContas = [], isLoading } = useContas();
   // Cartões de crédito vivem na aba Cartões; aqui ficam só as contas (bancos e caixa).
@@ -26,6 +25,13 @@ export function ContasView() {
   const createConta = useCreateConta();
   const updateConta = useUpdateConta();
   const deleteConta = useDeleteConta();
+  const { data: dash } = useDashboardData();
+  const [hidden, toggleHidden] = useHideValues();
+  const money = (cents: number) => formatMoney(cents, hidden);
+  const saldos = useMemo(
+    () => new Map(contas.map((c) => [c.id, computeSaldoConta(c, dash?.lancamentos ?? [])])),
+    [contas, dash],
+  );
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -65,7 +71,20 @@ export function ContasView() {
     catch { toast.error("Erro ao desativar conta"); }
   }
 
-  const saldoTotal = contas.reduce((sum, c) => sum + Number(c.saldo_inicial), 0);
+  const saldoTotal = contas.reduce((sum, c) => sum + (saldos.get(c.id) ?? 0), 0);
+
+  async function handleSaveSaldo(c: Conta, desejado: number): Promise<boolean> {
+    const atual = saldos.get(c.id) ?? 0;
+    const novoInicial = adjustedSaldoInicial(toCents(c.saldo_inicial), atual, desejado);
+    try {
+      await updateConta.mutateAsync({ id: c.id, data: { saldo_inicial: centsToReais(novoInicial) } });
+      toast.success(`Saldo de "${c.nome}" atualizado`);
+      return true;
+    } catch {
+      toast.error("Erro ao atualizar o saldo");
+      return false;
+    }
+  }
 
   return (
     <div style={{ padding: "24px 16px 80px", maxWidth: 800, margin: "0 auto" }}>
@@ -75,7 +94,7 @@ export function ContasView() {
         .mm-row { display: flex; align-items: center; gap: 12px; padding: 14px 18px; transition: background 0.15s; cursor: default; }
         .mm-row:hover { background: var(--hq-surface-hover); }
         .mm-row:hover .mm-actions { opacity: 1; }
-        .mm-actions { opacity: 0; transition: opacity 0.15s; display: flex; gap: 4px; }
+        .mm-actions { display: flex; gap: 4px; }
       `}</style>
 
       {/* Header */}
@@ -86,9 +105,18 @@ export function ContasView() {
             {contas.length} conta{contas.length !== 1 ? "s" : ""} ativa{contas.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <button onClick={() => { resetForm(); setShowForm(true); }} style={primaryBtn}>
-          <Plus size={14} /> Nova conta
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            type="button" onClick={toggleHidden} aria-pressed={hidden}
+            aria-label={hidden ? "Mostrar valores" : "Ocultar valores"} title={hidden ? "Mostrar valores" : "Ocultar valores"}
+            style={{ ...ghostBtn, padding: "8px 10px", display: "inline-flex", alignItems: "center" }}
+          >
+            {hidden ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+          <button onClick={() => { resetForm(); setShowForm(true); }} style={primaryBtn}>
+            <Plus size={14} /> Nova conta
+          </button>
+        </div>
       </div>
 
       {/* Patrimônio total */}
@@ -102,7 +130,7 @@ export function ContasView() {
         </div>
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: colors.textMuted }}>Patrimônio total</div>
-          <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums" }}>{fmt(saldoTotal)}</div>
+          <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums" }}>{money(saldoTotal)}</div>
         </div>
       </div>
 
@@ -161,7 +189,12 @@ export function ContasView() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
           {contas.map((c) => (
-            <ContaCard key={c.id} conta={c} onEdit={() => startEdit(c)} onDelete={() => handleDelete(c.id, c.nome)} />
+            <ContaCard
+              key={c.id} conta={c} saldoAtual={saldos.get(c.id) ?? 0} saldoInicial={toCents(c.saldo_inicial)}
+              hidden={hidden} money={money}
+              onEdit={() => startEdit(c)} onDelete={() => handleDelete(c.id, c.nome)}
+              onSaveSaldo={(desejado) => handleSaveSaldo(c, desejado)}
+            />
           ))}
         </div>
       )}
@@ -169,7 +202,10 @@ export function ContasView() {
   );
 }
 
-function ContaCard({ conta, onEdit, onDelete }: { conta: Conta; onEdit: () => void; onDelete: () => void }) {
+function ContaCard({ conta, saldoAtual, saldoInicial, hidden, money, onEdit, onDelete, onSaveSaldo }: {
+  conta: Conta; saldoAtual: number; saldoInicial: number; hidden: boolean; money: (c: number) => string;
+  onEdit: () => void; onDelete: () => void; onSaveSaldo: (desejado: number) => Promise<boolean>;
+}) {
   const contaCor = conta.cor ?? "#007AFF";
   return (
     <div className="mm-card" style={{ padding: 20 }}>
@@ -188,20 +224,99 @@ function ContaCard({ conta, onEdit, onDelete }: { conta: Conta; onEdit: () => vo
           </div>
         </div>
         <div className="mm-actions">
-          <button onClick={onEdit} style={iconBtn}><Pencil size={14} /></button>
-          <button onClick={onDelete} style={{ ...iconBtn, color: "#FF3B30" }}><Trash2 size={14} /></button>
+          <button onClick={onEdit} aria-label={`Editar a conta ${conta.nome}`} title="Editar nome, tipo e cor" style={iconBtn}><Pencil size={14} /></button>
+          <button onClick={onDelete} aria-label={`Desativar a conta ${conta.nome}`} title="Desativar conta" style={{ ...iconBtn, color: "#FF3B30" }}><Trash2 size={14} /></button>
         </div>
       </div>
+      <SaldoEditavel
+        nome={conta.nome} saldoAtual={saldoAtual} saldoInicial={saldoInicial}
+        hidden={hidden} money={money} onSave={onSaveSaldo}
+      />
+    </div>
+  );
+}
+
+// O valor da conta é o botão: clicou, edita. Salvar ajusta o saldo inicial para o saldo atual ficar no número digitado.
+function SaldoEditavel({ nome, saldoAtual, saldoInicial, hidden, money, onSave }: {
+  nome: string; saldoAtual: number; saldoInicial: number; hidden: boolean; money: (c: number) => string;
+  onSave: (desejado: number) => Promise<boolean>;
+}) {
+  const [editando, setEditando] = useState(false);
+  const [texto, setTexto] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+
+  function abrir() {
+    // Com os valores ocultos, o campo abre vazio para não mostrar o saldo na tela.
+    setTexto(hidden ? "" : (saldoAtual / 100).toFixed(2).replace(".", ","));
+    setErro(null);
+    setEditando(true);
+  }
+
+  async function salvar() {
+    const centavos = parseMoneyInput(texto);
+    if (centavos === null) {
+      setErro("Digite um valor válido, por exemplo 1.234,56");
+      return;
+    }
+    setSalvando(true);
+    const ok = await onSave(centavos);
+    setSalvando(false);
+    if (ok) setEditando(false);
+  }
+
+  if (!editando) {
+    return (
       <div>
         <div style={{ fontSize: 11, color: colors.textMuted, marginBottom: 2 }}>Saldo atual</div>
-        <div style={{
-          fontSize: 22, fontWeight: 700, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums",
-          color: Number(conta.saldo_inicial) < 0 ? "#FF3B30" : colors.text,
-        }}>
-          {fmt(Number(conta.saldo_inicial))}
-        </div>
+        <button
+          type="button" onClick={abrir}
+          aria-label={`Editar o saldo de ${nome}`} title="Clique para ajustar o saldo"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer",
+            background: "transparent", border: "none", padding: 0, color: "inherit", textAlign: "left",
+          }}
+        >
+          <span style={{
+            fontSize: 22, fontWeight: 700, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums",
+            color: !hidden && saldoAtual < 0 ? "#FF3B30" : colors.text,
+          }}>
+            {money(saldoAtual)}
+          </span>
+          <Pencil size={14} color={colors.textMuted} />
+        </button>
+        {saldoInicial !== saldoAtual && (
+          <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 4 }}>Saldo inicial {money(saldoInicial)}</div>
+        )}
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); void salvar(); }}>
+      <label htmlFor={`saldo-${nome}`} style={{ fontSize: 11, color: colors.textMuted, display: "block", marginBottom: 6 }}>
+        Novo saldo atual
+      </label>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: colors.textMuted, fontSize: 14 }}>R$</span>
+          <input
+            id={`saldo-${nome}`} autoFocus inputMode="decimal" autoComplete="off" disabled={salvando}
+            value={texto} placeholder="0,00"
+            onChange={(e) => { setTexto(e.target.value); setErro(null); }}
+            onKeyDown={(e) => { if (e.key === "Escape") setEditando(false); }}
+            style={{ ...inputStyle, paddingLeft: 38 }}
+          />
+        </div>
+        <button type="submit" disabled={salvando} aria-label="Salvar saldo" title="Salvar" style={{ ...primaryBtn, padding: "10px 12px" }}>
+          <Check size={16} />
+        </button>
+        <button type="button" onClick={() => setEditando(false)} aria-label="Cancelar" title="Cancelar" style={{ ...ghostBtn, padding: "10px 12px" }}>
+          <X size={16} />
+        </button>
+      </div>
+      {erro && <div role="alert" style={{ color: "#FF3B30", fontSize: 12, marginTop: 6 }}>{erro}</div>}
+    </form>
   );
 }
 

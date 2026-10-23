@@ -160,6 +160,46 @@ export function formatCents(c: number): string {
   return (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+// Saldo atual de uma conta: saldo inicial + movimentos já efetivados (pagos).
+// Compra no cartão não entra (só sai do caixa quando a fatura é paga).
+export function computeSaldoConta(conta: ContaRow, lancamentos: LancRow[]): number {
+  let saldo = toCents(conta.saldo_inicial);
+  for (const l of lancamentos) {
+    if (!l.pago) continue;
+    const v = toCents(l.valor);
+    if (l.conta_id === conta.id) {
+      if (l.tipo === "receita") saldo += v;
+      else if (l.tipo === "despesa" && !l.fatura_id) saldo -= v;
+      else if (l.tipo === "transferencia") saldo -= v;
+    }
+    if (l.tipo === "transferencia" && l.conta_destino_id === conta.id) saldo += v;
+  }
+  return saldo;
+}
+
+// Para o saldo atual ficar em `desejado`, o saldo inicial muda pela diferença.
+export function adjustedSaldoInicial(saldoInicial: number, saldoAtual: number, desejado: number): number {
+  return saldoInicial + (desejado - saldoAtual);
+}
+
+export function centsToReais(cents: number): number {
+  return Math.round(cents) / 100;
+}
+
+// Lê o que a pessoa digitou ("1.234,56", "1234,56", "1234.56", "R$ 50", "-50"). Devolve centavos ou null.
+export function parseMoneyInput(raw: string): number | null {
+  let s = raw.replace(/R\$/gi, "").replace(/\s/g, "");
+  if (s === "") return null;
+  let negativo = false;
+  if (s.startsWith("-")) { negativo = true; s = s.slice(1); }
+  else if (s.startsWith("+")) s = s.slice(1);
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", ".");
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+  if (!/^\d+(\.\d{1,2})?$/.test(s)) return null;
+  const cents = Math.round(Number(s) * 100);
+  return negativo ? -cents : cents;
+}
+
 // ── modelo do dashboard ─────────────────────────────────────────────────────
 
 export type FaturaStatus = "aberta" | "fechada" | "vencida";
@@ -293,20 +333,7 @@ export function buildDashboard(input: DashboardInput): DashboardModel {
 
   // Saldo nas contas: saldo inicial + movimentos já efetivados. Cartão de crédito fica de fora.
   const contasCorrentes = contas.filter((c) => c.ativa !== false && c.tipo !== "cartao_credito");
-  const contasSaldo = contasCorrentes.map((c) => {
-    let saldo = toCents(c.saldo_inicial);
-    for (const l of lancamentos) {
-      if (!l.pago) continue;
-      const v = toCents(l.valor);
-      if (l.conta_id === c.id) {
-        if (l.tipo === "receita") saldo += v;
-        else if (l.tipo === "despesa" && !l.fatura_id) saldo -= v;
-        else if (l.tipo === "transferencia") saldo -= v;
-      }
-      if (l.tipo === "transferencia" && l.conta_destino_id === c.id) saldo += v;
-    }
-    return { id: c.id, nome: c.nome, saldo };
-  });
+  const contasSaldo = contasCorrentes.map((c) => ({ id: c.id, nome: c.nome, saldo: computeSaldoConta(c, lancamentos) }));
 
   // Faturas em aberto (ordenadas por vencimento).
   const abertas = faturas

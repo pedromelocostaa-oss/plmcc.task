@@ -1,10 +1,12 @@
-import { useMemo, type CSSProperties, type ComponentType, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type CSSProperties, type ComponentType, type ReactNode } from "react";
 import {
   ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, CreditCard, Landmark, PiggyBank,
-  Receipt, TrendingUp,
+  Eye, EyeOff, Receipt, TrendingUp,
 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { useDashboardData } from "../lib/queries";
+import { formatMoney } from "../lib/privacy";
+import { useHideValues } from "../lib/use-hide-values";
 import {
   PRESETS, buildDashboard, capitalizeFirst, editRange, formatCents, formatDateBR, formatDayMonth, isIsoDate, monthLabel, monthShort,
   presetRange, resolvePeriod, shiftMonth,
@@ -27,6 +29,10 @@ const STATUS: Record<FaturaStatus, { label: string; color: string }> = {
   vencida: { label: "Vencida", color: RED },
 };
 
+// Todo valor em reais da tela passa por aqui: mostra o número ou a máscara, conforme a escolha do usuário.
+const MoneyContext = createContext<(cents: number) => string>(formatCents);
+const useMoney = () => useContext(MoneyContext);
+
 function todayBrasilia(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 }
@@ -37,6 +43,7 @@ export function FinancasDashboard({
   search, onSearchChange, Link,
 }: { search: SearchParams; onSearchChange: (s: SearchParams) => void; Link: DashboardLink }) {
   const { data, isLoading, isError } = useDashboardData();
+  const [hidden, toggleHidden] = useHideValues();
   const today = useMemo(todayBrasilia, []);
   const period = useMemo(() => resolvePeriod(search, today), [search, today]);
   const model = useMemo(
@@ -51,6 +58,7 @@ export function FinancasDashboard({
     <FinancasDashboardUI
       model={model} period={period} today={today}
       loading={isLoading} error={isError}
+      hidden={hidden} onToggleHidden={toggleHidden}
       onChange={onSearchChange} Link={Link}
     />
   );
@@ -59,14 +67,17 @@ export function FinancasDashboard({
 // ── apresentação ────────────────────────────────────────────────────────────
 
 export function FinancasDashboardUI({
-  model, period, today, loading, error, onChange, Link,
+  model, period, today, loading, error, onChange, Link, hidden = false, onToggleHidden,
 }: {
   model: DashboardModel; period: Period; today: string; loading?: boolean; error?: boolean;
   onChange: (s: SearchParams) => void; Link: DashboardLink;
+  hidden?: boolean; onToggleHidden?: () => void;
 }) {
+  const fmt = useMemo(() => (cents: number) => formatMoney(cents, hidden), [hidden]);
   const vazio = !loading && model.totalLancamentosNoPeriodo === 0 && model.proximasFaturas.length === 0 && model.contas.length === 0;
 
   return (
+    <MoneyContext.Provider value={fmt}>
     <div style={{ padding: "24px 16px 80px", maxWidth: 1000, margin: "0 auto" }}>
       <style>{`
         .fd-card { background: var(--hq-surface); border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05); }
@@ -79,11 +90,30 @@ export function FinancasDashboardUI({
         @keyframes fdPulse { 50% { opacity: 0.25; } }
       `}</style>
 
-      <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.025em", margin: 0 }}>Finanças</h1>
-        <p style={{ color: colors.textMuted, fontSize: 13, margin: "4px 0 0" }}>
-          {period.mode === "mes" ? monthLabel(period.mes) : `${formatDateBR(period.range.from)} a ${formatDateBR(period.range.to)}`}
-        </p>
+      <div style={{ marginBottom: 16, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.025em", margin: 0 }}>Finanças</h1>
+          <p style={{ color: colors.textMuted, fontSize: 13, margin: "4px 0 0" }}>
+            {period.mode === "mes" ? monthLabel(period.mes) : `${formatDateBR(period.range.from)} a ${formatDateBR(period.range.to)}`}
+          </p>
+        </div>
+        {onToggleHidden && (
+          <button
+            type="button"
+            onClick={onToggleHidden}
+            aria-pressed={hidden}
+            aria-label={hidden ? "Mostrar valores" : "Ocultar valores"}
+            title={hidden ? "Mostrar valores" : "Ocultar valores"}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0, cursor: "pointer",
+              padding: "8px 12px", borderRadius: 12, fontSize: 13, fontWeight: 500,
+              border: `1px solid ${colors.border}`, background: "var(--hq-surface)", color: colors.textSecondary,
+            }}
+          >
+            {hidden ? <EyeOff size={16} /> : <Eye size={16} />}
+            {hidden ? "Mostrar valores" : "Ocultar valores"}
+          </button>
+        )}
       </div>
 
       <PeriodBar period={period} today={today} onChange={onChange} />
@@ -99,19 +129,19 @@ export function FinancasDashboardUI({
           <Hero model={model} Link={Link} />
 
           <div className="fd-grid" style={{ marginBottom: 12 }}>
-            <Stat icon={<ArrowUpRight size={18} color={GREEN} />} tint={GREEN} label="Receitas" value={formatCents(model.receitas)} valueColor={GREEN}
-              sub={model.receitas > 0 ? `${formatCents(model.receitasRecebidas)} já recebido` : "Nenhuma no período"} />
-            <Stat icon={<ArrowDownRight size={18} color={RED} />} tint={RED} label="Despesas" value={formatCents(model.despesas)} valueColor={RED}
-              sub={model.despesas > 0 ? `${formatCents(model.despesasNoCartao)} no cartão · ${formatCents(model.despesasAVista)} à vista` : "Nenhuma no período"} />
-            <Stat icon={<TrendingUp size={18} color={BLUE} />} tint={BLUE} label="Saldo do período" value={formatCents(model.saldoPeriodo)}
-              valueColor={model.saldoPeriodo < 0 ? RED : colors.text} sub="Receitas menos despesas" />
+            <Stat icon={<ArrowUpRight size={18} color={GREEN} />} tint={GREEN} label="Receitas" value={fmt(model.receitas)} valueColor={GREEN}
+              sub={model.receitas > 0 ? `${fmt(model.receitasRecebidas)} já recebido` : "Nenhuma no período"} />
+            <Stat icon={<ArrowDownRight size={18} color={RED} />} tint={RED} label="Despesas" value={fmt(model.despesas)} valueColor={RED}
+              sub={model.despesas > 0 ? `${fmt(model.despesasNoCartao)} no cartão · ${fmt(model.despesasAVista)} à vista` : "Nenhuma no período"} />
+            <Stat icon={<TrendingUp size={18} color={BLUE} />} tint={BLUE} label="Saldo do período" value={fmt(model.saldoPeriodo)}
+              valueColor={model.saldoPeriodo < 0 && !hidden ? RED : colors.text} sub="Receitas menos despesas" />
           </div>
 
           <Panel title="Cartão × caixa" hint="O cartão só sai do caixa quando a fatura é paga.">
             <div className="fd-grid">
-              <Mini label="Gasto no cartão" value={formatCents(model.despesasNoCartao)} note="Compras do período, pela data da compra" color={PURPLE} />
-              <Mini label="Saída de caixa" value={formatCents(model.saidaDeCaixa)}
-                note={model.faturasPagasNoPeriodo > 0 ? `Inclui ${formatCents(model.faturasPagasNoPeriodo)} de faturas pagas` : "Despesas pagas à vista + faturas pagas"} color={ORANGE} />
+              <Mini label="Gasto no cartão" value={fmt(model.despesasNoCartao)} note="Compras do período, pela data da compra" color={PURPLE} />
+              <Mini label="Saída de caixa" value={fmt(model.saidaDeCaixa)}
+                note={model.faturasPagasNoPeriodo > 0 ? `Inclui ${fmt(model.faturasPagasNoPeriodo)} de faturas pagas` : "Despesas pagas à vista + faturas pagas"} color={ORANGE} />
             </div>
           </Panel>
 
@@ -133,6 +163,7 @@ export function FinancasDashboardUI({
         </>
       )}
     </div>
+    </MoneyContext.Provider>
   );
 }
 
@@ -218,6 +249,7 @@ const navBtn: CSSProperties = {
 // ── blocos ──────────────────────────────────────────────────────────────────
 
 function Hero({ model, Link }: { model: DashboardModel; Link: DashboardLink }) {
+  const fmt = useMoney();
   return (
     <div style={{
       background: "linear-gradient(135deg, #007AFF, #5AC8FA)", borderRadius: 20, padding: "22px 26px", marginBottom: 12,
@@ -227,7 +259,7 @@ function Hero({ model, Link }: { model: DashboardModel; Link: DashboardLink }) {
         <div>
           <div style={{ fontSize: 13, fontWeight: 500, opacity: 0.8, marginBottom: 4 }}>Saldo nas contas</div>
           <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums" }}>
-            {formatCents(model.saldoContas)}
+            {fmt(model.saldoContas)}
           </div>
         </div>
         <Link to="/financas/contas" style={{ color: "#fff", fontSize: 12, fontWeight: 600, textDecoration: "none", opacity: 0.9 }}>Ver contas</Link>
@@ -236,7 +268,7 @@ function Hero({ model, Link }: { model: DashboardModel; Link: DashboardLink }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
           {model.contas.slice(0, 4).map((c) => (
             <span key={c.id} style={{ background: "rgba(255,255,255,0.18)", borderRadius: 999, padding: "4px 10px", fontSize: 12 }}>
-              {c.nome} · {formatCents(c.saldo)}
+              {c.nome} · {fmt(c.saldo)}
             </span>
           ))}
         </div>
@@ -293,6 +325,7 @@ function Mini({ label, value, note, color }: { label: string; value: string; not
 }
 
 function Faturas({ model, Link }: { model: DashboardModel; Link: DashboardLink }) {
+  const fmt = useMoney();
   const f = model.parcelasFuturas;
   return (
     <Panel title="Próximas faturas" hint="Faturas em aberto, independentes do período escolhido"
@@ -319,18 +352,18 @@ function Faturas({ model, Link }: { model: DashboardModel; Link: DashboardLink }
                 background: `${STATUS[x.status].color}1A`, color: STATUS[x.status].color,
               }}>{STATUS[x.status].label}</span>
               <div style={{ fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums", minWidth: 96, textAlign: "right" }}>
-                {formatCents(x.total)}
+                {fmt(x.total)}
               </div>
             </div>
           ))}
           {f.quantidade > 0 && (
             <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: colors.bg }}>
               <div style={{ fontSize: 12, fontWeight: 600 }}>
-                {formatCents(f.total)} já comprometidos em {f.quantidade} {f.quantidade === 1 ? "parcela" : "parcelas"}
+                {fmt(f.total)} já comprometidos em {f.quantidade} {f.quantidade === 1 ? "parcela" : "parcelas"}
               </div>
               <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
                 Depois da próxima fatura:{" "}
-                {f.porMes.map((m) => `${monthShort(m.mes)}/${m.mes.slice(2, 4)} ${formatCents(m.total)}`).join(" · ")}
+                {f.porMes.map((m) => `${monthShort(m.mes)}/${m.mes.slice(2, 4)} ${fmt(m.total)}`).join(" · ")}
               </div>
             </div>
           )}
@@ -341,6 +374,7 @@ function Faturas({ model, Link }: { model: DashboardModel; Link: DashboardLink }
 }
 
 function Categorias({ model }: { model: DashboardModel }) {
+  const fmt = useMoney();
   const dados = model.categorias.map((c, i) => ({ ...c, cor: c.cor ?? (c.id === null ? "#8E8E93" : PALETTE[i % PALETTE.length]), valor: c.total / 100 }));
   const soCategoriaVazia = dados.length === 1 && dados[0].id === null;
   return (
@@ -355,7 +389,7 @@ function Categorias({ model }: { model: DashboardModel }) {
                 <Pie data={dados} dataKey="valor" nameKey="nome" innerRadius={44} outerRadius={70} paddingAngle={2} stroke="none" isAnimationActive={false}>
                   {dados.map((d, i) => <Cell key={i} fill={d.cor} />)}
                 </Pie>
-                <Tooltip formatter={(v) => formatCents(Math.round(Number(v) * 100))} />
+                <Tooltip formatter={(v) => fmt(Math.round(Number(v) * 100))} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -365,7 +399,7 @@ function Categorias({ model }: { model: DashboardModel }) {
                 <span style={{ width: 10, height: 10, borderRadius: 3, background: d.cor, flexShrink: 0 }} />
                 <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.nome}</span>
                 <span style={{ color: colors.textMuted, fontSize: 11 }}>{d.percentual.toLocaleString("pt-BR")}%</span>
-                <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{formatCents(d.total)}</span>
+                <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{fmt(d.total)}</span>
               </div>
             ))}
             {soCategoriaVazia && (
@@ -381,6 +415,7 @@ function Categorias({ model }: { model: DashboardModel }) {
 }
 
 function Evolucao({ model }: { model: DashboardModel }) {
+  const fmt = useMoney();
   const dados = model.evolucao.map((e) => ({
     mes: monthShort(e.mes), receitas: e.receitas / 100, despesas: e.despesas / 100,
   }));
@@ -395,7 +430,7 @@ function Evolucao({ model }: { model: DashboardModel }) {
             <BarChart data={dados} margin={{ top: 4, right: 4, left: 4, bottom: 0 }} barGap={3}>
               <CartesianGrid vertical={false} stroke="var(--hq-border)" strokeDasharray="3 3" />
               <XAxis dataKey="mes" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "var(--hq-text-muted)" }} />
-              <Tooltip formatter={(v) => formatCents(Math.round(Number(v) * 100))} cursor={{ fill: "rgba(120,120,128,0.08)" }} />
+              <Tooltip formatter={(v) => fmt(Math.round(Number(v) * 100))} cursor={{ fill: "rgba(120,120,128,0.08)" }} />
               <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
               <Bar dataKey="receitas" name="Receitas" fill={GREEN} radius={[4, 4, 0, 0]} isAnimationActive={false} />
               <Bar dataKey="despesas" name="Despesas" fill={RED} radius={[4, 4, 0, 0]} isAnimationActive={false} />
@@ -408,6 +443,7 @@ function Evolucao({ model }: { model: DashboardModel }) {
 }
 
 function Recentes({ model, today, Link }: { model: DashboardModel; today: string; Link: DashboardLink }) {
+  const fmt = useMoney();
   return (
     <Panel title="Lançamentos do período" hint={`${model.totalLancamentosNoPeriodo} no total`}
       action={<Link to="/financas/lancamentos" style={linkStyle}>Ver todos</Link>}>
@@ -438,7 +474,7 @@ function Recentes({ model, today, Link }: { model: DashboardModel; today: string
                 fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums",
                 color: r.tipo === "receita" ? GREEN : r.tipo === "despesa" ? RED : colors.text,
               }}>
-                {r.tipo === "receita" ? "+" : r.tipo === "despesa" ? "-" : ""}{formatCents(r.valor)}
+                {r.tipo === "receita" ? "+" : r.tipo === "despesa" ? "-" : ""}{fmt(r.valor)}
               </div>
             </div>
           ))}
