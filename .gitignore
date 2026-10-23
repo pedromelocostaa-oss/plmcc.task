@@ -38,3 +38,6 @@ dist-ssr
 # Exemplos versionados (sem segredos)
 !.env.example
 !.env.local.example
+
+# Dados pessoais (nunca versionar)
+/local-imports/

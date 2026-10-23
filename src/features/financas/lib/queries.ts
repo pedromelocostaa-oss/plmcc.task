@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Conta, ContaTipo, Categoria, CategoriaTipo, Lancamento, Cartao, Fatura, Recorrencia, RecorrenciaFrequencia } from "./types";
+import type { LancRow, FaturaRow, ContaRow, CategoriaRow } from "./dashboard";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -438,5 +439,50 @@ export function useDeleteRecorrencia() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: FQK.recorrencias }),
+  });
+}
+
+// ── Dashboard ───────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 1000;
+
+// O Supabase devolve no maximo 1000 linhas por chamada: busca por paginas ate acabar.
+async function fetchAllRows<T>(table: string, columns: string, orderBy: string): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await db
+      .from(table)
+      .select(columns)
+      .order(orderBy, { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    out.push(...((data ?? []) as T[]));
+    if (!data || data.length < PAGE_SIZE) break;
+  }
+  return out;
+}
+
+// Uma unica busca alimenta o dashboard inteiro; trocar de mes ou periodo nao busca de novo.
+export function useDashboardData() {
+  return useQuery({
+    queryKey: ["financas", "dashboard"] as const,
+    queryFn: async () => {
+      const [lancamentos, faturas, contas, categorias] = await Promise.all([
+        fetchAllRows<LancRow>(
+          "financas_lancamentos",
+          "id, conta_id, categoria_id, descricao, valor, tipo, data, data_pagamento, pago, fatura_id, parcela_atual, parcela_total, conta_destino_id",
+          "data",
+        ),
+        fetchAllRows<FaturaRow>(
+          "financas_faturas",
+          "id, cartao_id, mes_referencia, data_fechamento, data_vencimento, valor_total, paga, data_pagamento",
+          "data_vencimento",
+        ),
+        fetchAllRows<ContaRow>("financas_contas", "id, nome, tipo, saldo_inicial, ativa", "created_at"),
+        fetchAllRows<CategoriaRow>("financas_categorias", "id, nome, cor, icone", "nome"),
+      ]);
+      return { lancamentos, faturas, contas, categorias };
+    },
   });
 }
