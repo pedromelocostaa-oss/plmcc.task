@@ -1,8 +1,38 @@
 -- PASSO 2/2 do login. FECHA O ACESSO: so o usuario autenticado dono enxerga e altera os dados.
--- Pre-requisito: passo 1 + "npm run seed:user". Se sobrar linha sem dono, a migration aborta
--- inteira (nada e alterado) e diz qual tabela.
+-- Pre-requisito: passo 1 + exatamente 1 usuario criado em Authentication > Users (o script
+-- npm run seed:user e uma alternativa). Este passo passa o dono para as linhas existentes.
+-- Se algo estiver errado, a migration aborta inteira (nada e alterado) e diz o motivo.
 
 begin;
+
+-- 0) dono dos dados existentes. O sistema tem UM usuario (criado em Authentication > Users);
+-- ele passa a ser dono de tudo que ainda nao tem dono. Aborta se nao houver exatamente 1 usuario.
+do $$
+declare
+  owned text[] := array[
+    'projects','tasks','subtasks','task_tags','task_comments',
+    'project_links','project_notes','bookmarks','purchases','notes',
+    'financas_contas','financas_cartoes','financas_categorias','financas_lancamentos',
+    'financas_faturas','financas_recorrencias','financas_tags','financas_orcamentos'
+  ];
+  uid uuid;
+  n_users int;
+  t text;
+begin
+  select count(*) into n_users from auth.users;
+  if n_users <> 1 then
+    raise exception 'Esperava exatamente 1 usuario em auth.users e encontrei %. Crie o usuario em Authentication > Users antes de rodar este passo.', n_users;
+  end if;
+  select id into uid from auth.users;
+  foreach t in array owned loop
+    if to_regclass('public.' || t) is not null then
+      execute format(
+        'update public.%I set user_id = %L where user_id is null or user_id = %L',
+        t, uid, '00000000-0000-0000-0000-000000000000'
+      );
+    end if;
+  end loop;
+end $$;
 
 do $$
 declare
