@@ -193,7 +193,7 @@ export function ImportarLote() {
           </label>
           <textarea
             id="texto-lote" className="il-in" value={texto} onChange={(e) => setTexto(e.target.value)} rows={12}
-            placeholder={"20/10  Uber  R$ 25,90\n18/10  Inditex — parcela 1/3  R$ 146,50\n17/10  Posto  60,00"}
+            placeholder={"20/10  Uber  R$ 25,90\n18/10  Loja Alfa — parcela 1/3  R$ 120,00\n17/10  Posto  60,00"}
             style={{ width: "100%", marginTop: 8, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 13, resize: "vertical" }}
           />
           <p style={{ fontSize: 12, color: colors.textMuted, margin: "8px 0 12px", lineHeight: 1.5 }}>
