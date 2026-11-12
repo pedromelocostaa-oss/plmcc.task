@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Conta, ContaTipo, Categoria, CategoriaTipo, Lancamento, Cartao, Fatura, Recorrencia, RecorrenciaFrequencia } from "./types";
 import type { LancRow, FaturaRow, ContaRow, CategoriaRow } from "./dashboard";
+import type { PlanoGravacao } from "./importar";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
@@ -484,5 +485,66 @@ export function useDashboardData() {
       ]);
       return { lancamentos, faturas, contas, categorias };
     },
+  });
+}
+
+// ── Importação em lote ──────────────────────────────────────────────────────
+
+export type ResultadoImportacao = { lancamentos: number; parcelasFuturas: number; faturas: number };
+
+// Ordem: (1) cria as faturas que faltam, (2) grava TODOS os lançamentos numa única inserção (tudo ou nada; a FK
+// da compra de origem é conferida no fim da instrução), (3) atualiza o total das faturas (não crítico).
+export function useImportarLote() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ plano, cartaoId }: { plano: PlanoGravacao; cartaoId: string | null }): Promise<ResultadoImportacao> => {
+      const idPorMes = new Map<string, string>();
+
+      if (cartaoId && plano.faturas.length > 0) {
+        const chaves = plano.faturas.map((f) => `${f.mes}-01`);
+        const { data: existentes, error: erroBusca } = await db
+          .from("financas_faturas").select("id, mes_referencia").eq("cartao_id", cartaoId).in("mes_referencia", chaves);
+        if (erroBusca) throw erroBusca;
+        for (const f of (existentes ?? []) as { id: string; mes_referencia: string }[]) idPorMes.set(f.mes_referencia.slice(0, 7), f.id);
+
+        const faltam = plano.faturas.filter((f) => !idPorMes.has(f.mes));
+        if (faltam.length > 0) {
+          const { data: novas, error: erroNovas } = await db
+            .from("financas_faturas")
+            .insert(faltam.map((f) => ({
+              cartao_id: cartaoId, mes_referencia: `${f.mes}-01`, data_fechamento: f.fechamento, data_vencimento: f.vencimento,
+            })))
+            .select("id, mes_referencia");
+          if (erroNovas) throw erroNovas;
+          for (const f of (novas ?? []) as { id: string; mes_referencia: string }[]) idPorMes.set(f.mes_referencia.slice(0, 7), f.id);
+        }
+      }
+
+      const linhas = plano.lancamentos.map((l) => ({
+        id: l.id, conta_id: l.conta_id, descricao: l.descricao, valor: l.valor, tipo: l.tipo, data: l.data,
+        pago: l.pago, data_pagamento: l.data_pagamento,
+        fatura_id: l.fatura_mes ? idPorMes.get(l.fatura_mes) ?? null : null,
+        parcela_atual: l.parcela_atual, parcela_total: l.parcela_total, compra_pai_id: l.compra_pai_id, observacao: l.observacao,
+      }));
+      const { error: erroLancamentos } = await db.from("financas_lancamentos").insert(linhas);
+      if (erroLancamentos) throw erroLancamentos;
+
+      try {
+        const ids = Array.from(idPorMes.values());
+        if (ids.length > 0) {
+          const { data: itens } = await db.from("financas_lancamentos").select("fatura_id, valor").in("fatura_id", ids);
+          const somas = new Map<string, number>();
+          for (const i of (itens ?? []) as { fatura_id: string; valor: number | string }[]) {
+            somas.set(i.fatura_id, (somas.get(i.fatura_id) ?? 0) + Math.round(Number(i.valor) * 100));
+          }
+          await Promise.all(ids.map((id) => db.from("financas_faturas").update({ valor_total: (somas.get(id) ?? 0) / 100 }).eq("id", id)));
+        }
+      } catch {
+        /* o total da fatura é recalculado a partir dos lançamentos nas telas; não vale desfazer a importação por isso */
+      }
+
+      return { lancamentos: linhas.length, parcelasFuturas: plano.parcelasFuturas, faturas: plano.faturas.length };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["financas"] }),
   });
 }
